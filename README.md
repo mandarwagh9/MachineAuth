@@ -445,6 +445,49 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 
 ---
 
+## 🧪 Testing with AI Agents
+
+We verified MachineAuth works with real AI agents - not just simulated requests. Here's how we tested it:
+
+### The Verification Challenge
+
+The biggest concern with AI agents is **hallucination** - can they actually make HTTP requests, or are they just claiming to?
+
+### Our Testing Approach
+
+1. **Created a protected endpoint** (`/api/verify`) that returns a specific secret code: `AGENT-AUTH-2026-XK9M`
+
+2. **Gave OpenCLAW (our AI agent) credentials:**
+   - `client_id`: Agent credential from MachineAuth
+   - `client_secret`: Secret key from MachineAuth
+
+3. **Asked the agent to:**
+   - Call the token endpoint to get a JWT
+   - Call the protected `/api/verify` endpoint with the JWT
+   - Return the secret code from the response
+
+### Results
+
+```
+✅ Step 1: Got JWT access token (expires in 3600s)
+✅ Step 2: Called protected endpoint with Bearer token  
+✅ Step 3: Success! Returned: "AGENT-AUTH-2026-XK9M"
+```
+
+The agent returned the **exact secret code** we wrote on the server - proving it was making real HTTP requests, not hallucinating!
+
+### Why This Matters
+
+This proves that:
+- ✅ AI agents can authenticate using OAuth 2.0 Client Credentials
+- ✅ JWT tokens are properly issued and validated
+- ✅ Protected endpoints work as expected
+- ✅ Agents are **not hallucinating** - they make real API calls
+
+Any AI agent that supports HTTP requests can now authenticate with MachineAuth!
+
+---
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
