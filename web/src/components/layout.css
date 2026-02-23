@@ -1,0 +1,56 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: #1a1a2e;
+  border-bottom: 1px solid #2a2a4a;
+  padding: 1rem 2rem;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  color: #a0a0b0;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link.active {
+  color: #fff;
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.main {
+  flex: 1;
+  padding: 2rem;
+  background: #0f0f1a;
+}
