@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: agentauth-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agentauth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    container_name: agentauth-server
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      ENV: production
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/agentauth?sslmode=disable
+      JWT_SIGNING_ALGORITHM: RS256
+      JWT_KEY_ID: key-1
+      JWT_ACCESS_TOKEN_EXPIRY: 3600
+      ALLOWED_ORIGINS: "*"
+      REQUIRE_HTTPS: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: agentauth-web
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
