@@ -14,8 +14,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"agentauth/internal/config"
-	"agentauth/internal/models"
+	"machineauth/internal/config"
+	"machineauth/internal/models"
 )
 
 type TokenService struct {
@@ -51,7 +51,7 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 	claims := jwt.MapClaims{
 		"iss":   "https://auth.example.com",
 		"sub":   agent.ClientID,
-		"aud":   "agentauth-api",
+		"aud":   "machineauth-api",
 		"iat":   now.Unix(),
 		"exp":   now.Add(s.cfg.GetTokenExpiry()).Unix(),
 		"scope": scopes,
@@ -193,14 +193,14 @@ func generateTokenID() string {
 	return fmt.Sprintf("%x", b)
 }
 
-var jwtSecret = []byte("agentauth-jwt-secret-key-for-development-only")
+var jwtSecret = []byte("machineauth-jwt-secret-key-for-development-only")
 
 func GenerateHMACToken(agent *models.Agent, expirySeconds int) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"iss":   "agentauth",
+		"iss":   "machineauth",
 		"sub":   agent.ClientID,
-		"aud":   "agentauth-api",
+		"aud":   "machineauth-api",
 		"iat":   now.Unix(),
 		"exp":   now.Add(time.Duration(expirySeconds) * time.Second).Unix(),
 		"scope": agent.Scopes,

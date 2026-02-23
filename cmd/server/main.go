@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"agentauth/internal/config"
-	"agentauth/internal/db"
-	"agentauth/internal/handlers"
-	"agentauth/internal/middleware"
-	"agentauth/internal/services"
+	"machineauth/internal/config"
+	"machineauth/internal/db"
+	"machineauth/internal/handlers"
+	"machineauth/internal/middleware"
+	"machineauth/internal/services"
 )
 
 func main() {

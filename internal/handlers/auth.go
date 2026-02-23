@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"agentauth/internal/models"
-	"agentauth/internal/services"
+	"machineauth/internal/models"
+	"machineauth/internal/services"
 )
 
 type AuthHandler struct {

@@ -27,7 +27,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Port:                getEnvInt("PORT", 8080),
 		Env:                 getEnv("ENV", "development"),
-		DatabaseURL:         getEnv("DATABASE_URL", "json:agentauth.json"),
+		DatabaseURL:         getEnv("DATABASE_URL", "json:machineauth.json"),
 		JWTSigningAlgorithm: getEnv("JWT_SIGNING_ALGORITHM", "RS256"),
 		JWTKeyID:            getEnv("JWT_KEY_ID", "key-1"),
 		JWTExpirySeconds:    getEnvInt("JWT_ACCESS_TOKEN_EXPIRY", 3600),

@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"agentauth/internal/models"
-	"agentauth/internal/services"
+	"machineauth/internal/models"
+	"machineauth/internal/services"
 )
 
 type AgentsHandler struct {

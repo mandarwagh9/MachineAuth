@@ -47,15 +47,15 @@ func Connect(databaseURL string) (*DB, error) {
 		return connectJSON(databaseURL)
 	}
 	// Default to JSON
-	return connectJSON("json:agentauth.json")
+	return connectJSON("json:machineauth.json")
 }
 
 func connectJSON(databaseURL string) (*DB, error) {
-	filename := "agentauth.json"
+	filename := "machineauth.json"
 	if strings.HasPrefix(databaseURL, "json:") {
 		filename = strings.TrimPrefix(databaseURL, "json:")
 		if filename == "json" {
-			filename = "agentauth.json"
+			filename = "machineauth.json"
 		}
 	}
 

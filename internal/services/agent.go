@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"agentauth/internal/db"
-	"agentauth/internal/models"
+	"machineauth/internal/db"
+	"machineauth/internal/models"
 )
 
 type AgentService struct {
