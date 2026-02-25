@@ -41,7 +41,7 @@
 
 ## 📊 Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mandarwagh9/MachineAuth&type=date&logscale&legend=top-left)](https://www.star-history.com/#mandarwagh9/MachineAuth&type=date&logscale&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=mandarwagh9/MachineAuth&type=timeline&legend=top-left)](https://www.star-history.com/#mandarwagh9/MachineAuth&type=timeline&legend=top-left)
 
 ---
 
