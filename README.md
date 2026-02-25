@@ -96,6 +96,45 @@ That's it! No database, no dependencies.
 
 ---
 
+## Admin UI
+
+MachineAuth includes a beautiful admin dashboard built with React + TailwindCSS.
+
+### Quick Start
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Access the admin UI at `http://localhost:3000`
+
+### Login Credentials
+
+- **Username:** `admin`
+- **Password:** `mandar123`
+
+> ⚠️ Change the password in `web/src/App.tsx` before deploying!
+
+### Features
+
+- 📊 **Dashboard** - Real-time metrics and statistics
+- 👥 **Agents** - Create, view, rotate, deactivate agents
+- 📈 **Metrics** - Token issuance, refresh, revocation stats
+- 🔐 **Secure** - Basic authentication required
+
+### Building for Production
+
+```bash
+cd web
+npm run build
+```
+
+The built files will be in `web/dist/`
+
+---
+
 ## Installation
 
 ### Requirements
