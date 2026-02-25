@@ -39,6 +39,14 @@
 
 ---
 
+## 📊 Star History
+
+<p align="center">
+  <iframe style="width:100%;height:auto;min-width:600px;min-height:400px;" src="https://www.star-history.com/embed?secret=bWFuZGFyd2FnaA==#mandarwagh9/MachineAuth&type=date&legend=top-left" frameBorder="0"></iframe>
+</p>
+
+---
+
 ## 🔐 Why MachineAuth?
 
 As AI agents become autonomous, they need **secure, programmatic authentication** - just like developers use API keys, but built specifically for machines.
