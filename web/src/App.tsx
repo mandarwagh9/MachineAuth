@@ -17,7 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 const AUTH_USER = 'admin'
-const AUTH_PASS = 'mandar123' // Change this to your desired password
+const AUTH_PASS = 'admin'
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
