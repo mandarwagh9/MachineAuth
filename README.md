@@ -169,7 +169,7 @@ curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 <head><title>Secret Page</title></head>
 <body>
   <h1>MachineAuth Protected Page</h1>
-  <p>Success! Your agent authenticated with JWT.</p>
+  <p>Success! Your MachineAuth agent authenticated with JWT.</p>
 </body>
 </html>
 ```
