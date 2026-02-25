@@ -18,9 +18,6 @@
   <a href="https://github.com/mandarwagh9/MachineAuth/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/mandarwagh9/MachineAuth?style=flat-square" alt="License">
   </a>
-  <a href="https://goreportcard.com/report/github.com/mandarwagh9/MachineAuth">
-    <img src="https://img.shields.io/goreportcard/g/mandarwagh9/MachineAuth?style=flat-square" alt="Go Report">
-  </a>
 </p>
 
 ---
