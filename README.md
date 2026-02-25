@@ -113,7 +113,7 @@ Access the admin UI at `http://localhost:3000`
 ### Login Credentials
 
 - **Username:** `admin`
-- **Password:** `mandar123`
+- **Password:** `admin`
 
 > ⚠️ Change the password in `web/src/App.tsx` before deploying!
 
