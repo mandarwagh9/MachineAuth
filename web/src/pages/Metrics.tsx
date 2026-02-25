@@ -9,7 +9,7 @@ import {
   Key,
   Users
 } from 'lucide-react'
-import { MetricsService, HealthService } from '@/services/api'
+import { MetricsService } from '@/services/api'
 import type { Metrics } from '@/types'
 
 const MetricCard = ({ 

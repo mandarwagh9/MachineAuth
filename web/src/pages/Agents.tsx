@@ -6,8 +6,6 @@ import {
   Search, 
   MoreVertical,
   Copy,
-  RefreshCw,
-  PowerOff,
   CheckCircle,
   XCircle,
   Clock

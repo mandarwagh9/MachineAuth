@@ -1,14 +1,12 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, X, Copy, CheckCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { ArrowLeft, Plus, X, Copy, CheckCircle } from 'lucide-react'
 import { AgentService } from '@/services/api'
 import { toast } from 'sonner'
 
 const COMMON_SCOPES = ['read', 'write', 'admin', 'api:access', 'data:read', 'data:write']
 
 export function CreateAgentPage() {
-  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')

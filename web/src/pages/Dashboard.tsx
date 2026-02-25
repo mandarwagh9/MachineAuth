@@ -5,8 +5,7 @@ import {
   Activity, 
   TrendingUp,
   Shield,
-  Clock,
-  AlertCircle
+  Clock
 } from 'lucide-react'
 import { MetricsService, HealthService } from '@/services/api'
 import type { Metrics, HealthCheck } from '@/types'
