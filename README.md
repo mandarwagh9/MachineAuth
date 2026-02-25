@@ -21,7 +21,6 @@
   <a href="https://goreportcard.com/report/github.com/mandarwagh9/MachineAuth">
     <img src="https://img.shields.io/goreportcard/g/mandarwagh9/MachineAuth?style=flat-square" alt="Go Report">
   </a>
-  <img src="https://img.shields.io/github/v/release/mandarwagh9/MachineAuth?style=flat-square" alt="Version">
 </p>
 
 ---
@@ -336,7 +335,6 @@ MIT License - see [LICENSE](LICENSE).
 
 - [Live Demo](https://auth.writesomething.fun)
 - [Report Issues](https://github.com/mandarwagh9/MachineAuth/issues)
-- [Releases](https://github.com/mandarwagh9/MachineAuth/releases)
 
 ---
 
