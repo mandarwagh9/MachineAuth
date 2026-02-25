@@ -52,6 +52,26 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"endpoints":"/oauth/token, /oauth/introspect, /oauth/revoke, /oauth/refresh, /api/agents, /.well-known/jwks.json","service":"MachineAuth","status":"running","version":"1.0.0"}`))
+	})
+
+	mux.HandleFunc("/health/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		agentCount, _ := agentService.Count()
+		w.Write([]byte(fmt.Sprintf(`{"status":"ok","timestamp":"%s","agents_count":%d}`, time.Now().UTC().Format(time.RFC3339), agentCount)))
+	})
+
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		stats, _ := agentService.GetStats()
+		w.Write([]byte(fmt.Sprintf(`{"requests":%d,"tokens_issued":%d,"tokens_refreshed":0,"tokens_revoked":0,"active_tokens":%d,"total_agents":%d}`, stats.TotalRequests, stats.TokensIssued, stats.ActiveTokens, stats.TotalAgents)))
+	})
+
 	mux.HandleFunc("/oauth/token", authHandler.Token)
 
 	mux.HandleFunc("/.well-known/jwks.json", tokenService.JWKS)

@@ -108,6 +108,34 @@ func (s *AgentService) Delete(id uuid.UUID) error {
 	return s.db.DeleteAgent(id.String())
 }
 
+func (s *AgentService) Count() (int, error) {
+	agents, err := s.db.ListAgents()
+	if err != nil {
+		return 0, err
+	}
+	return len(agents), nil
+}
+
+type Stats struct {
+	TotalRequests int
+	TokensIssued  int
+	ActiveTokens  int
+	TotalAgents   int
+}
+
+func (s *AgentService) GetStats() (*Stats, error) {
+	agents, err := s.db.ListAgents()
+	if err != nil {
+		return nil, err
+	}
+	return &Stats{
+		TotalRequests: 0,
+		TokensIssued:  0,
+		ActiveTokens:  0,
+		TotalAgents:   len(agents),
+	}, nil
+}
+
 func (s *AgentService) RotateCredentials(id uuid.UUID) (string, error) {
 	newSecret := generateSecureSecret(32)
 
