@@ -27,8 +27,8 @@ go run ./cmd/server
 # Run all tests
 go test -v ./...
 
-# Run single test
-go test -v -run TestAgentService_CreateAgent ./internal/services/...
+# Run single test (when tests exist)
+go test -v -run TestFunctionName ./internal/services/...
 
 # Run tests with coverage
 go test -v -coverprofile=coverage.out ./...
@@ -54,6 +54,9 @@ cd web && npm run build
 
 # Lint
 cd web && npm run lint
+
+# TypeScript type check
+cd web && npx tsc --noEmit
 ```
 
 ## Code Style Guidelines
@@ -64,27 +67,45 @@ cd web && npm run lint
 
 ```go
 import (
-    "context"
-    "encoding/json"
+	"context"
+	"encoding/json"
 
-    "github.com/golang-jwt/jwt/v5"
-    "github.com/google/uuid"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
-    "machineauth/internal/config"
-    "machineauth/internal/models"
+	"machineauth/internal/config"
+	"machineauth/internal/models"
 )
 ```
 
 **Naming**: Packages lowercase, exported PascalCase, unexported camelCase. Constants PascalCase.
 
-**Error Handling**: Wrap with context:
+**Error Handling**: Wrap with context using `fmt.Errorf` with `%w`:
 ```go
 if err != nil {
-    return nil, fmt.Errorf("failed to create agent: %w", err)
+	return nil, fmt.Errorf("failed to create agent: %w", err)
 }
 ```
 
-**Types**: Use precise types, pointers for optional values.
+**HTTP Handlers**: Return structured JSON responses, use proper HTTP status codes:
+```go
+w.Header().Set("Content-Type", "application/json")
+json.NewEncoder(w).Encode(models.AgentResponse{Agent: *agent})
+```
+
+**Types**: Use precise types, pointers for optional values. Embed `uuid.UUID` directly:
+```go
+type Agent struct {
+	ID        uuid.UUID  `json:"id"`
+	Name      string     `json:"name"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+```
+
+**Logging**: Use `log.Printf` for errors with context:
+```go
+log.Printf("failed to create agent: %v", err)
+```
 
 ### React/TypeScript (Frontend)
 
@@ -171,3 +192,22 @@ ALLOWED_ORIGINS=http://localhost:3000
 - Frontend proxies `/api`, `/oauth`, `/.well-known`, `/health`, `/metrics` to `localhost:8081`
 - Use `@/` for absolute imports (maps to `./src/`)
 - API baseURL via `VITE_API_URL` env var
+- Admin credentials: `admin` / `admin` (change in web/src/App.tsx before deployment)
+- Alternate Go entry point: `go run server-main.go` (runs on port 8081)
+
+## Key Conventions
+
+### Backend Layer Architecture
+- **Handlers** (`internal/handlers/`): HTTP request/response handling, validation
+- **Services** (`internal/services/`): Business logic, orchestration
+- **Models** (`internal/models/`): API request/response types, JSON serialization
+- **DB** (`internal/db/`): Database operations, storage abstraction
+
+### Frontend State Management
+- Use React hooks (`useState`, `useEffect`) for local state
+- Use `react-hook-form` for form handling
+- Use `sonner` for toast notifications
+
+### JSON Field Naming
+- Backend uses `snake_case` for JSON (e.g., `client_id`, `expires_at`)
+- Frontend can use either convention; match API response

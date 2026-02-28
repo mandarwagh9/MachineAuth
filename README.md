@@ -171,6 +171,9 @@ Download from [Releases](https://github.com/mandarwagh9/MachineAuth/releases) (c
 | 🔍 Token Introspection | Validate tokens via `/oauth/introspect` |
 | 🚫 Token Revocation | Invalidate tokens via `/oauth/revoke` |
 | 🔐 Agent Rotation | Rotate credentials via API |
+| 🤖 Agent Self-Service | Agents manage own accounts via API |
+| 📊 Usage Tracking | Track tokens, refreshes, activity per agent |
+| 📈 Per-Agent Metrics | Agents can view their own usage statistics |
 | 📊 Metrics | Track tokens issued, revoked, etc. |
 | 🌐 CORS | Configurable cross-origin settings |
 | 📁 Zero-DB | JSON file storage - no external dependencies |
@@ -243,8 +246,40 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 | `/api/agents/{id}` | GET | Agent details | `curl localhost:8081/api/agents/{id}` |
 | `/api/agents/{id}/rotate` | POST | Rotate credentials | `curl -X POST localhost:8081/api/agents/{id}/rotate` |
 | `/api/agents/{id}/deactivate` | POST | Deactivate agent | `curl -X POST localhost:8081/api/agents/{id}/deactivate` |
+| `/api/agents/me` | GET | Get own profile | `curl -H "Authorization: Bearer ..." localhost:8081/api/agents/me` |
+| `/api/agents/me/usage` | GET | Get own usage stats | `curl -H "Authorization: Bearer ..." localhost:8081/api/agents/me/usage` |
+| `/api/agents/me/rotate` | POST | Rotate own credentials | `curl -X POST -H "Authorization: Bearer ..." localhost:8081/api/agents/me/rotate` |
+| `/api/agents/me/deactivate` | POST | Deactivate own account | `curl -X POST -H "Authorization: Bearer ..." localhost:8081/api/agents/me/deactivate` |
+| `/api/agents/me/reactivate` | POST | Reactivate own account | `curl -X POST -H "Authorization: Bearer ..." localhost:8081/api/agents/me/reactivate` |
+| `/api/agents/me/delete` | DELETE | Delete own account | `curl -X DELETE -H "Authorization: Bearer ..." localhost:8081/api/agents/me/delete` |
 | `/api/verify` | GET | Verify token | `curl -H "Authorization: Bearer ..." localhost:8081/api/verify` |
 | `/metrics` | GET | Server metrics | `curl localhost:8081/metrics` |
+
+### Agent Self-Service API
+
+Agents can manage their own accounts using JWT authentication:
+
+```bash
+# Get own profile
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8081/api/agents/me
+
+# Get usage statistics (tokens issued, refreshes, activity)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8081/api/agents/me/usage
+
+# Rotate credentials
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8081/api/agents/me/rotate
+
+# Deactivate account
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8081/api/agents/me/deactivate
+
+# Delete account
+curl -X DELETE -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8081/api/agents/me/delete
+```
 
 ### HTTP Status Codes
 
