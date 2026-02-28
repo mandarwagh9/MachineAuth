@@ -43,6 +43,7 @@ func main() {
 
 	authHandler := handlers.NewAuthHandler(agentService, tokenService)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
+	agentSelfHandler := handlers.NewAgentSelfHandler(agentService)
 
 	mux := http.NewServeMux()
 
@@ -87,6 +88,15 @@ func main() {
 		}
 	})
 	mux.HandleFunc("/api/agents/", agentsHandler.HandleAgent)
+
+	jwtAuth := middleware.JWTAuth(tokenService)
+
+	mux.Handle("/api/agents/me", jwtAuth(http.HandlerFunc(agentSelfHandler.GetMe)))
+	mux.Handle("/api/agents/me/usage", jwtAuth(http.HandlerFunc(agentSelfHandler.GetUsage)))
+	mux.Handle("/api/agents/me/rotate", jwtAuth(http.HandlerFunc(agentSelfHandler.RotateCredentials)))
+	mux.Handle("/api/agents/me/deactivate", jwtAuth(http.HandlerFunc(agentSelfHandler.Deactivate)))
+	mux.Handle("/api/agents/me/reactivate", jwtAuth(http.HandlerFunc(agentSelfHandler.Reactivate)))
+	mux.Handle("/api/agents/me/delete", jwtAuth(http.HandlerFunc(agentSelfHandler.Delete)))
 
 	loggedMux := middleware.Logging(mux)
 	corsMux := middleware.CORS(cfg.AllowedOrigins, loggedMux)
