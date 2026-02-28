@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard'
 import { AgentsPage } from './pages/Agents'
 import { CreateAgentPage } from './pages/CreateAgent'
 import { MetricsPage } from './pages/Metrics'
+import { MyAccountPage } from './pages/MyAccount'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -89,6 +90,7 @@ function AppRoutes() {
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="tokens" element={<AgentsPage />} />
         <Route path="settings" element={<Dashboard />} />
+        <Route path="my-account" element={<MyAccountPage />} />
       </Route>
     </Routes>
   )

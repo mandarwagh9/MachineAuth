@@ -5,7 +5,8 @@ import {
   Settings, 
   Activity,
   Key,
-  Shield
+  Shield,
+  User
 } from 'lucide-react'
 
 const navigation = [
@@ -14,6 +15,7 @@ const navigation = [
   { name: 'Tokens', href: '/tokens', icon: Key },
   { name: 'Metrics', href: '/metrics', icon: Activity },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'My Account', href: '/my-account', icon: User },
 ]
 
 export function Sidebar() {

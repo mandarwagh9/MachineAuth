@@ -9,6 +9,24 @@ export interface Agent {
   updated_at: string;
   last_seen_at?: string;
   expires_at?: string;
+  token_count?: number;
+  refresh_count?: number;
+  last_activity_at?: string;
+  last_token_issued_at?: string;
+}
+
+export interface Rotation {
+  rotated_at: string;
+  rotated_by_ip?: string;
+}
+
+export interface AgentUsage {
+  agent: Agent;
+  token_count: number;
+  refresh_count: number;
+  last_activity_at?: string;
+  last_token_issued_at?: string;
+  rotation_history: Rotation[];
 }
 
 export interface CreateAgentRequest {
