@@ -17,16 +17,26 @@ type JSONDB struct {
 }
 
 type Agent struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	ClientID         string     `json:"client_id"`
-	ClientSecretHash string     `json:"client_secret_hash"`
-	Scopes           []string   `json:"scopes"`
-	PublicKey        *string    `json:"public_key,omitempty"`
-	IsActive         bool       `json:"is_active"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	ExpiresAt        *time.Time `json:"expires_at,omitempty"`
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	ClientID          string     `json:"client_id"`
+	ClientSecretHash  string     `json:"client_secret_hash"`
+	Scopes            []string   `json:"scopes"`
+	PublicKey         *string    `json:"public_key,omitempty"`
+	IsActive          bool       `json:"is_active"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
+	TokenCount        int        `json:"token_count"`
+	RefreshCount      int        `json:"refresh_count"`
+	LastActivityAt    *time.Time `json:"last_activity_at,omitempty"`
+	LastTokenIssuedAt *time.Time `json:"last_token_issued_at,omitempty"`
+	RotationHistory   []Rotation `json:"rotation_history"`
+}
+
+type Rotation struct {
+	RotatedAt   time.Time `json:"rotated_at"`
+	RotatedByIP string    `json:"rotated_by_ip,omitempty"`
 }
 
 type AuditLog struct {

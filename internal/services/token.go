@@ -49,13 +49,14 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"iss":   "https://auth.example.com",
-		"sub":   agent.ClientID,
-		"aud":   "machineauth-api",
-		"iat":   now.Unix(),
-		"exp":   now.Add(s.cfg.GetTokenExpiry()).Unix(),
-		"scope": scopes,
-		"jti":   generateTokenID(),
+		"iss":      "https://auth.example.com",
+		"sub":      agent.ClientID,
+		"agent_id": agent.ID.String(),
+		"aud":      "machineauth-api",
+		"iat":      now.Unix(),
+		"exp":      now.Add(s.cfg.GetTokenExpiry()).Unix(),
+		"scope":    scopes,
+		"jti":      generateTokenID(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -111,6 +112,16 @@ func (s *TokenService) ValidateToken(tokenString string) (jwt.MapClaims, error) 
 	}
 
 	return nil, fmt.Errorf("invalid token")
+}
+
+func (s *TokenService) GetAgentIDFromClaims(claims jwt.MapClaims) (string, bool) {
+	agentID, ok := claims["agent_id"].(string)
+	return agentID, ok
+}
+
+func (s *TokenService) GetClientIDFromClaims(claims jwt.MapClaims) (string, bool) {
+	clientID, ok := claims["sub"].(string)
+	return clientID, ok
 }
 
 func (s *TokenService) GetPublicKey() *rsa.PublicKey {
@@ -198,13 +209,14 @@ var jwtSecret = []byte("machineauth-jwt-secret-key-for-development-only")
 func GenerateHMACToken(agent *models.Agent, expirySeconds int) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"iss":   "machineauth",
-		"sub":   agent.ClientID,
-		"aud":   "machineauth-api",
-		"iat":   now.Unix(),
-		"exp":   now.Add(time.Duration(expirySeconds) * time.Second).Unix(),
-		"scope": agent.Scopes,
-		"jti":   generateTokenID(),
+		"iss":      "machineauth",
+		"sub":      agent.ClientID,
+		"agent_id": agent.ID.String(),
+		"aud":      "machineauth-api",
+		"iat":      now.Unix(),
+		"exp":      now.Add(time.Duration(expirySeconds) * time.Second).Unix(),
+		"scope":    agent.Scopes,
+		"jti":      generateTokenID(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
