@@ -409,6 +409,12 @@ MIT License - see [LICENSE](LICENSE).
 
 ---
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=mandarwagh9/MachineAuth&type=date&legend=top-left)](https://www.star-history.com/#mandarwagh9/MachineAuth&type=date&legend=top-left)
+
+---
+
 <p align="center">
   Built for the AI agent ecosystem 🤖
 </p>
