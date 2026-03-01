@@ -19,7 +19,13 @@ Self-hosted OAuth 2.0 authentication for AI agents and machine-to-machine commun
    go run server-main.go
    ```
 
-3. **Access the API**
+3. **Run the frontend**
+   ```bash
+   cd web && npm install && npm run dev
+   ```
+
+4. **Access the application**
+   - Frontend: http://localhost:3000
    - API: http://localhost:8081
    - Health: http://localhost:8081/health
    - JWKS: http://localhost:8081/.well-known/jwks.json
@@ -59,19 +65,33 @@ curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 
 ## Features
 
+### Backend
 - OAuth 2.0 Client Credentials flow
 - JWT token generation with RS256
 - JWKS endpoint for public key distribution
 - Agent management (create, list, revoke)
+- Credential rotation for agents
 - Scope-based permissions
+- Audit logging for agent lifecycle events
 - Self-hosted deployment
 - JSON file-based storage (no database required)
 
+### Frontend (Web Dashboard)
+- **Agent Management Dashboard** — View all registered agents in a sortable table with name, client ID, scopes, status, and creation date
+- **Agent Creation** — Form to register new agents with name, comma-separated scopes, and optional expiry duration. Displays one-time client credentials on success
+- **Agent Detail View** — Inspect individual agent details including ID, client ID, status, scopes, and timestamps
+- **Credential Rotation** — Rotate an agent's client secret directly from the detail page with one-time display of the new secret
+- **Agent Deletion** — Delete agents with confirmation dialog from the list or detail view
+- **Token Generator** — Interactive tool to request OAuth 2.0 access tokens by selecting an agent, entering the client secret, and optionally specifying scopes. Displays the JWT with a copy-to-clipboard button
+- **Responsive Layout** — Header navigation with links to Agents and Tokens sections
+- **API Proxy** — Vite dev server proxies `/api`, `/oauth`, `/.well-known`, and `/health` to the Go backend
+
 ## Tech Stack
 
-- **Backend**: Go
+- **Backend**: Go 1.21+
+- **Frontend**: React 18, TypeScript, React Router 6, Axios, Vite 5
 - **Storage**: JSON file (for simplicity)
-- **Deployment**: Docker
+- **Deployment**: Docker + Nginx reverse proxy
 
 ## Configuration
 
