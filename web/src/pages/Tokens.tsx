@@ -230,7 +230,7 @@ function GenerateTab() {
 function IntrospectTab() {
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ active: boolean; [key: string]: unknown } | null>(null)
+  const [result, setResult] = useState<{ active: boolean; exp?: number; iat?: number; client_id?: string; scope?: string; token_type?: string; [key: string]: unknown } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showRaw, setShowRaw] = useState(false)
 
@@ -244,7 +244,7 @@ function IntrospectTab() {
     setError(null)
     setResult(null)
     try {
-      const data = await TokenService.introspect(token.trim()) as { active: boolean; [key: string]: unknown }
+      const data = await TokenService.introspect(token.trim()) as { active: boolean; exp?: number; iat?: number; client_id?: string; scope?: string; token_type?: string; [key: string]: unknown }
       setResult(data)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error_description?: string } } })
