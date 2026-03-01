@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { 
   LayoutDashboard, 
+  Building2,
   Users, 
   Settings, 
   Activity,
@@ -11,6 +12,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Organizations', href: '/organizations', icon: Building2 },
   { name: 'Agents', href: '/agents', icon: Users },
   { name: 'Tokens', href: '/tokens', icon: Key },
   { name: 'Metrics', href: '/metrics', icon: Activity },

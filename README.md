@@ -123,6 +123,10 @@ Access the admin UI at `http://localhost:3000`
 - 👥 **Agents** - Create, view, rotate, deactivate agents
 - 📈 **Metrics** - Token issuance, refresh, revocation stats
 - 🔐 **Secure** - Basic authentication required
+- 🏢 **Organizations** - Multi-tenant organization management
+- 👥 **Teams** - Team-based access control
+- 🔑 **API Keys** - API key management per organization
+- 📄 **Self-Service** - Agents manage their own accounts
 
 ### Building for Production
 
@@ -176,6 +180,7 @@ Download from [Releases](https://github.com/mandarwagh9/MachineAuth/releases) (c
 | 📈 Per-Agent Metrics | Agents can view their own usage statistics |
 | 📊 Metrics | Track tokens issued, revoked, etc. |
 | 🏢 Multi-Tenant | Organizations and Teams support |
+| 🔑 API Keys | API key management per organization |
 | 🌐 CORS | Configurable cross-origin settings |
 | 📁 Zero-DB | JSON file storage - no external dependencies |
 

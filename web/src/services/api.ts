@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { TokenRequest, TokenResponse, Metrics, HealthCheck, Agent, AgentUsage } from '@/types'
+import type { TokenRequest, TokenResponse, Metrics, HealthCheck, Agent, AgentUsage, CreateOrganizationRequest, CreateTeamRequest, CreateAPIKeyRequest, CreateAPIKeyResponse } from '@/types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://auth.writesomething.fun'
 
@@ -137,6 +137,66 @@ export const HealthService = {
   ready: async (): Promise<HealthCheck> => {
     const response = await axios.get<HealthCheck>(API_BASE_URL + '/health/ready')
     return response.data
+  },
+}
+
+export const OrganizationService = {
+  list: async () => {
+    const response = await api.get('/organizations')
+    return response.data
+  },
+
+  create: async (data: CreateOrganizationRequest) => {
+    const response = await api.post('/organizations', data)
+    return response.data
+  },
+
+  get: async (id: string) => {
+    const response = await api.get(`/organizations/${id}`)
+    return response.data
+  },
+
+  update: async (id: string, data: Partial<CreateOrganizationRequest>) => {
+    const response = await api.patch(`/organizations/${id}`, data)
+    return response.data
+  },
+
+  delete: async (id: string) => {
+    await api.delete(`/organizations/${id}`)
+  },
+
+  listTeams: async (orgId: string) => {
+    const response = await api.get(`/organizations/${orgId}/teams`)
+    return response.data
+  },
+
+  createTeam: async (orgId: string, data: CreateTeamRequest) => {
+    const response = await api.post(`/organizations/${orgId}/teams`, data)
+    return response.data
+  },
+
+  listAgents: async (orgId: string) => {
+    const response = await api.get(`/organizations/${orgId}/agents`)
+    return response.data
+  },
+
+  createAgent: async (orgId: string, data: unknown) => {
+    const response = await api.post(`/organizations/${orgId}/agents`, data)
+    return response.data
+  },
+
+  listAPIKeys: async (orgId: string) => {
+    const response = await api.get(`/organizations/${orgId}/api-keys`)
+    return response.data
+  },
+
+  createAPIKey: async (orgId: string, data: CreateAPIKeyRequest): Promise<CreateAPIKeyResponse> => {
+    const response = await api.post(`/organizations/${orgId}/api-keys`, data)
+    return response.data
+  },
+
+  deleteAPIKey: async (orgId: string, keyId: string) => {
+    await api.delete(`/organizations/${orgId}/api-keys/${keyId}`)
   },
 }
 

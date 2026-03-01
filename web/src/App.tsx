@@ -8,6 +8,9 @@ import { AgentsPage } from './pages/Agents'
 import { CreateAgentPage } from './pages/CreateAgent'
 import { MetricsPage } from './pages/Metrics'
 import { MyAccountPage } from './pages/MyAccount'
+import { OrganizationsPage } from './pages/Organizations'
+import { CreateOrganizationPage } from './pages/CreateOrganization'
+import { OrganizationDetailPage } from './pages/OrganizationDetail'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -84,6 +87,9 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
+        <Route path="organizations" element={<OrganizationsPage />} />
+        <Route path="organizations/new" element={<CreateOrganizationPage />} />
+        <Route path="organizations/:id" element={<OrganizationDetailPage />} />
         <Route path="agents" element={<AgentsPage />} />
         <Route path="agents/new" element={<CreateAgentPage />} />
         <Route path="agents/:id" element={<AgentsPage />} />
