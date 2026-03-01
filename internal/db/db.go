@@ -10,10 +10,42 @@ import (
 )
 
 type JSONDB struct {
-	mu        sync.RWMutex
-	filename  string
-	Agents    []Agent    `json:"agents"`
-	AuditLogs []AuditLog `json:"audit_logs"`
+	mu            sync.RWMutex
+	filename      string
+	Agents        []Agent        `json:"agents"`
+	AuditLogs     []AuditLog     `json:"audit_logs"`
+	RefreshTokens []RefreshToken `json:"refresh_tokens"`
+	RevokedTokens []RevokedToken `json:"revoked_tokens"`
+	Metrics       Metrics        `json:"metrics"`
+	Organizations []Organization `json:"organizations"`
+	Teams         []Team         `json:"teams"`
+}
+
+type Metrics struct {
+	TokensRefreshed int64 `json:"tokens_refreshed"`
+	TokensRevoked   int64 `json:"tokens_revoked"`
+}
+
+type Organization struct {
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Slug           string    `json:"slug"`
+	OwnerEmail     string    `json:"owner_email"`
+	JWTIssuer      string    `json:"jwt_issuer"`
+	JWTExpirySecs  int       `json:"jwt_expiry_secs"`
+	AllowedOrigins string    `json:"allowed_origins"`
+	Plan           string    `json:"plan"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type Team struct {
+	ID             string    `json:"id"`
+	OrganizationID string    `json:"organization_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type Agent struct {
@@ -37,6 +69,20 @@ type Agent struct {
 type Rotation struct {
 	RotatedAt   time.Time `json:"rotated_at"`
 	RotatedByIP string    `json:"rotated_by_ip,omitempty"`
+}
+
+type RefreshToken struct {
+	ID        string     `json:"id"`
+	AgentID   string     `json:"agent_id"`
+	TokenHash string     `json:"token_hash"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+}
+
+type RevokedToken struct {
+	JTI     string    `json:"jti"`
+	Expires time.Time `json:"expires"`
 }
 
 type AuditLog struct {
@@ -179,6 +225,208 @@ func (db *DB) AddAuditLog(log AuditLog) error {
 	defer db.mu.Unlock()
 	db.AuditLogs = append(db.AuditLogs, log)
 	return db.Save()
+}
+
+func (db *DB) CreateRefreshToken(rt RefreshToken) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.RefreshTokens = append(db.RefreshTokens, rt)
+	return db.Save()
+}
+
+func (db *DB) GetRefreshToken(id string) (*RefreshToken, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.RefreshTokens {
+		if db.RefreshTokens[i].ID == id {
+			return &db.RefreshTokens[i], nil
+		}
+	}
+	return nil, fmt.Errorf("refresh token not found")
+}
+
+func (db *DB) RevokeRefreshToken(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.RefreshTokens {
+		if db.RefreshTokens[i].ID == id {
+			now := time.Now()
+			db.RefreshTokens[i].RevokedAt = &now
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("refresh token not found")
+}
+
+func (db *DB) AddRevokedToken(rt RevokedToken) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.RevokedTokens = append(db.RevokedTokens, rt)
+	return db.Save()
+}
+
+func (db *DB) IsTokenRevoked(jti string) bool {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for _, rt := range db.RevokedTokens {
+		if rt.JTI == jti {
+			return true
+		}
+	}
+	return false
+}
+
+func (db *DB) IncrementTokensRefreshed() error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.Metrics.TokensRefreshed++
+	return db.Save()
+}
+
+func (db *DB) IncrementTokensRevoked() error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.Metrics.TokensRevoked++
+	return db.Save()
+}
+
+func (db *DB) GetMetrics() Metrics {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	return db.Metrics
+}
+
+func (db *DB) CreateOrganization(org Organization) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.Organizations = append(db.Organizations, org)
+	return db.Save()
+}
+
+func (db *DB) GetOrganization(id string) (*Organization, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.Organizations {
+		if db.Organizations[i].ID == id {
+			return &db.Organizations[i], nil
+		}
+	}
+	return nil, fmt.Errorf("organization not found")
+}
+
+func (db *DB) GetOrganizationBySlug(slug string) (*Organization, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.Organizations {
+		if db.Organizations[i].Slug == slug {
+			return &db.Organizations[i], nil
+		}
+	}
+	return nil, fmt.Errorf("organization not found")
+}
+
+func (db *DB) ListOrganizations() ([]Organization, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	orgs := make([]Organization, len(db.Organizations))
+	copy(orgs, db.Organizations)
+	return orgs, nil
+}
+
+func (db *DB) UpdateOrganization(id string, updateFn func(*Organization) error) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.Organizations {
+		if db.Organizations[i].ID == id {
+			if err := updateFn(&db.Organizations[i]); err != nil {
+				return err
+			}
+			db.Organizations[i].UpdatedAt = time.Now()
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("organization not found")
+}
+
+func (db *DB) DeleteOrganization(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.Organizations {
+		if db.Organizations[i].ID == id {
+			db.Organizations = append(db.Organizations[:i], db.Organizations[i+1:]...)
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("organization not found")
+}
+
+func (db *DB) CreateTeam(team Team) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.Teams = append(db.Teams, team)
+	return db.Save()
+}
+
+func (db *DB) GetTeam(id string) (*Team, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.Teams {
+		if db.Teams[i].ID == id {
+			return &db.Teams[i], nil
+		}
+	}
+	return nil, fmt.Errorf("team not found")
+}
+
+func (db *DB) ListTeamsByOrganization(orgID string) ([]Team, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var teams []Team
+	for i := range db.Teams {
+		if db.Teams[i].OrganizationID == orgID {
+			teams = append(teams, db.Teams[i])
+		}
+	}
+	return teams, nil
+}
+
+func (db *DB) UpdateTeam(id string, updateFn func(*Team) error) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.Teams {
+		if db.Teams[i].ID == id {
+			if err := updateFn(&db.Teams[i]); err != nil {
+				return err
+			}
+			db.Teams[i].UpdatedAt = time.Now()
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("team not found")
+}
+
+func (db *DB) DeleteTeam(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.Teams {
+		if db.Teams[i].ID == id {
+			db.Teams = append(db.Teams[:i], db.Teams[i+1:]...)
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("team not found")
 }
 
 func RunMigrations(db *DB) error {

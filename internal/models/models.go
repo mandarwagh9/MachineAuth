@@ -62,14 +62,16 @@ type TokenRequest struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	Scope        string `json:"scope"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 type TokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
-	Scope       string `json:"scope,omitempty"`
-	IssuedAt    int64  `json:"issued_at"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	Scope        string `json:"scope,omitempty"`
+	IssuedAt     int64  `json:"issued_at"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 type ErrorResponse struct {
@@ -97,4 +99,80 @@ type JWK struct {
 	N   string `json:"n"`
 	E   string `json:"e"`
 	Alg string `json:"alg"`
+}
+
+type Organization struct {
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Slug           string    `json:"slug"`
+	OwnerEmail     string    `json:"owner_email"`
+	JWTIssuer      string    `json:"jwt_issuer"`
+	JWTExpirySecs  int       `json:"jwt_expiry_secs"`
+	AllowedOrigins string    `json:"allowed_origins"`
+	Plan           string    `json:"plan"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type CreateOrganizationRequest struct {
+	Name       string `json:"name"`
+	Slug       string `json:"slug"`
+	OwnerEmail string `json:"owner_email"`
+}
+
+type UpdateOrganizationRequest struct {
+	Name           string `json:"name"`
+	JWTIssuer      string `json:"jwt_issuer"`
+	JWTExpirySecs  int    `json:"jwt_expiry_secs"`
+	AllowedOrigins string `json:"allowed_origins"`
+}
+
+type Team struct {
+	ID             string    `json:"id"`
+	OrganizationID string    `json:"organization_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type CreateTeamRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type UpdateTeamRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type OrganizationsResponse struct {
+	Organizations []Organization `json:"organizations"`
+}
+
+type TeamsResponse struct {
+	Teams []Team `json:"teams"`
+}
+
+type IntrospectResponse struct {
+	Active    bool   `json:"active"`
+	Scope     string `json:"scope,omitempty"`
+	ClientID  string `json:"client_id,omitempty"`
+	Exp       int64  `json:"exp,omitempty"`
+	Iat       int64  `json:"iat,omitempty"`
+	TokenType string `json:"token_type,omitempty"`
+	Revoked   bool   `json:"revoked,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+type RevokeRequest struct {
+	Token         string `json:"token"`
+	TokenTypeHint string `json:"token_type_hint"`
+}
+
+type RefreshRequest struct {
+	GrantType    string `json:"grant_type"`
+	RefreshToken string `json:"refresh_token"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 }

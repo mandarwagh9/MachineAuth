@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,17 +35,20 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	tokenService, err := services.NewTokenService(cfg)
+	tokenService, err := services.NewTokenService(cfg, database)
 	if err != nil {
 		log.Fatalf("failed to create token service: %v", err)
 	}
 
 	agentService := services.NewAgentService(database)
 	auditService := services.NewAuditService(database)
+	orgService := services.NewOrganizationService(database)
+	teamService := services.NewTeamService(database)
 
 	authHandler := handlers.NewAuthHandler(agentService, tokenService)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
 	agentSelfHandler := handlers.NewAgentSelfHandler(agentService)
+	orgHandler := handlers.NewOrganizationHandler(orgService, teamService)
 
 	mux := http.NewServeMux()
 
@@ -70,12 +75,53 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		stats, _ := agentService.GetStats()
-		w.Write([]byte(fmt.Sprintf(`{"requests":%d,"tokens_issued":%d,"tokens_refreshed":0,"tokens_revoked":0,"active_tokens":%d,"total_agents":%d}`, stats.TotalRequests, stats.TokensIssued, stats.ActiveTokens, stats.TotalAgents)))
+		tokensRefreshed, tokensRevoked := tokenService.GetMetrics()
+		w.Write([]byte(fmt.Sprintf(`{"requests":%d,"tokens_issued":%d,"tokens_refreshed":%d,"tokens_revoked":%d,"active_tokens":%d,"total_agents":%d}`, stats.TotalRequests, stats.TokensIssued, tokensRefreshed, tokensRevoked, stats.ActiveTokens, stats.TotalAgents)))
 	})
 
 	mux.HandleFunc("/oauth/token", authHandler.Token)
+	mux.HandleFunc("/oauth/introspect", authHandler.Introspect)
+	mux.HandleFunc("/oauth/revoke", authHandler.Revoke)
+	mux.HandleFunc("/oauth/refresh", authHandler.Refresh)
 
 	mux.HandleFunc("/.well-known/jwks.json", tokenService.JWKS)
+
+	mux.HandleFunc("/api/organizations", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			orgHandler.ListOrganizations(w, r)
+		case http.MethodPost:
+			orgHandler.CreateOrganization(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/organizations/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		if strings.Contains(path, "/teams") {
+			switch r.Method {
+			case http.MethodGet:
+				orgHandler.ListTeams(w, r)
+			case http.MethodPost:
+				orgHandler.CreateTeam(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else {
+			switch r.Method {
+			case http.MethodGet:
+				orgHandler.GetOrganization(w, r)
+			case http.MethodPut, http.MethodPatch:
+				orgHandler.UpdateOrganization(w, r)
+			case http.MethodDelete:
+				orgHandler.DeleteOrganization(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		}
+	})
 
 	mux.HandleFunc("/api/agents", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -97,6 +143,29 @@ func main() {
 	mux.Handle("/api/agents/me/deactivate", jwtAuth(http.HandlerFunc(agentSelfHandler.Deactivate)))
 	mux.Handle("/api/agents/me/reactivate", jwtAuth(http.HandlerFunc(agentSelfHandler.Reactivate)))
 	mux.Handle("/api/agents/me/delete", jwtAuth(http.HandlerFunc(agentSelfHandler.Delete)))
+
+	mux.Handle("/api/verify", jwtAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agentID, ok := middleware.GetAgentIDFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		agent, err := agentService.GetByID(agentID)
+		if err != nil {
+			http.Error(w, "agent not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"valid":       true,
+			"agent_id":    agent.ID,
+			"client_id":   agent.ClientID,
+			"name":        agent.Name,
+			"scopes":      agent.Scopes,
+			"is_active":   agent.IsActive,
+			"token_count": agent.TokenCount,
+		})
+	})))
 
 	loggedMux := middleware.Logging(mux)
 	corsMux := middleware.CORS(cfg.AllowedOrigins, loggedMux)
