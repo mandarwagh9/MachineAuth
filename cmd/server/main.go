@@ -109,6 +109,27 @@ func main() {
 			default:
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
+		} else if strings.Contains(path, "/agents") {
+			orgID := strings.TrimPrefix(path, "/api/organizations/")
+			orgID = strings.TrimSuffix(orgID, "/agents")
+			if orgID == "" {
+				http.Error(w, "organization ID required", http.StatusBadRequest)
+				return
+			}
+			switch r.Method {
+			case http.MethodGet:
+				agents, err := agentService.ListByOrganization(orgID)
+				if err != nil {
+					http.Error(w, "failed to list agents", http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{"agents": agents})
+			case http.MethodPost:
+				agentsHandler.CreateInOrganization(w, r, orgID)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
 		} else {
 			switch r.Method {
 			case http.MethodGet:

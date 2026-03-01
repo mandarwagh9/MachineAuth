@@ -8,6 +8,8 @@ import (
 
 type Agent struct {
 	ID                uuid.UUID  `json:"id"`
+	OrganizationID    string     `json:"organization_id"`
+	TeamID            *uuid.UUID `json:"team_id,omitempty"`
 	Name              string     `json:"name"`
 	ClientID          string     `json:"client_id"`
 	ClientSecretHash  string     `json:"-"`
@@ -30,6 +32,8 @@ type Rotation struct {
 
 type AgentUsage struct {
 	Agent             Agent      `json:"agent"`
+	OrganizationID    string     `json:"organization_id"`
+	TeamID            *uuid.UUID `json:"team_id,omitempty"`
 	TokenCount        int        `json:"token_count"`
 	RefreshCount      int        `json:"refresh_count"`
 	LastActivityAt    *time.Time `json:"last_activity_at,omitempty"`
@@ -38,9 +42,11 @@ type AgentUsage struct {
 }
 
 type CreateAgentRequest struct {
-	Name      string   `json:"name"`
-	Scopes    []string `json:"scopes,omitempty"`
-	ExpiresIn *int     `json:"expires_in,omitempty"`
+	Name           string     `json:"name"`
+	OrganizationID string     `json:"organization_id"`
+	TeamID         *uuid.UUID `json:"team_id,omitempty"`
+	Scopes         []string   `json:"scopes,omitempty"`
+	ExpiresIn      *int       `json:"expires_in,omitempty"`
 }
 
 type CreateAgentResponse struct {

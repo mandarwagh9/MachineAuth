@@ -50,6 +50,8 @@ type Team struct {
 
 type Agent struct {
 	ID                string     `json:"id"`
+	OrganizationID    string     `json:"organization_id"`
+	TeamID            *string    `json:"team_id,omitempty"`
 	Name              string     `json:"name"`
 	ClientID          string     `json:"client_id"`
 	ClientSecretHash  string     `json:"client_secret_hash"`
@@ -188,6 +190,32 @@ func (db *DB) ListAgents() ([]Agent, error) {
 
 	agents := make([]Agent, len(db.Agents))
 	copy(agents, db.Agents)
+	return agents, nil
+}
+
+func (db *DB) ListAgentsByOrganization(orgID string) ([]Agent, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var agents []Agent
+	for i := range db.Agents {
+		if db.Agents[i].OrganizationID == orgID {
+			agents = append(agents, db.Agents[i])
+		}
+	}
+	return agents, nil
+}
+
+func (db *DB) ListAgentsByTeam(teamID string) ([]Agent, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var agents []Agent
+	for i := range db.Agents {
+		if db.Agents[i].TeamID != nil && *db.Agents[i].TeamID == teamID {
+			agents = append(agents, db.Agents[i])
+		}
+	}
 	return agents, nil
 }
 

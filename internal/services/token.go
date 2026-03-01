@@ -57,6 +57,8 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 		"iss":      "https://auth.example.com",
 		"sub":      agent.ClientID,
 		"agent_id": agent.ID.String(),
+		"org_id":   agent.OrganizationID,
+		"team_id":  agent.TeamID.String(),
 		"aud":      "machineauth-api",
 		"iat":      now.Unix(),
 		"exp":      now.Add(s.cfg.GetTokenExpiry()).Unix(),

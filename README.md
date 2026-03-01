@@ -284,6 +284,38 @@ curl -X POST http://localhost:8081/api/organizations/{org_id}/teams \
   -d '{"name": "Engineering", "description": "Engineering team"}'
 ```
 
+### Create Agent in Organization
+
+```bash
+curl -X POST http://localhost:8081/api/organizations/{org_id}/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "scopes": ["read", "write"]}'
+```
+
+### List Agents in Organization
+
+```bash
+curl http://localhost:8081/api/organizations/{org_id}/agents
+```
+
+### JWT Token Claims
+
+Tokens include `org_id` and `team_id` for multi-tenant access control:
+
+```json
+{
+  "iss": "https://auth.example.com",
+  "sub": "client_id",
+  "agent_id": "agent-uuid",
+  "org_id": "organization-uuid",
+  "team_id": "team-uuid (optional)",
+  "scope": ["read", "write"],
+  "jti": "token-uuid",
+  "exp": 1234567890,
+  "iat": 1234567890
+}
+```
+
 ---
 
 ## API Reference
@@ -320,6 +352,8 @@ curl -X POST http://localhost:8081/api/organizations/{org_id}/teams \
 | `/api/organizations/{id}` | GET | Get organization |
 | `/api/organizations/{id}` | PUT | Update organization |
 | `/api/organizations/{id}` | DELETE | Delete organization |
+| `/api/organizations/{id}/agents` | GET | List agents in organization |
+| `/api/organizations/{id}/agents` | POST | Create agent in organization |
 
 ### Teams API
 

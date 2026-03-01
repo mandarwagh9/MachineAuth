@@ -43,8 +43,16 @@ func (s *AgentService) Create(req models.CreateAgentRequest) (*models.CreateAgen
 		scopes = []string{}
 	}
 
+	var teamID *string
+	if req.TeamID != nil {
+		tid := req.TeamID.String()
+		teamID = &tid
+	}
+
 	agent := db.Agent{
 		ID:               id.String(),
+		OrganizationID:   req.OrganizationID,
+		TeamID:           teamID,
 		Name:             req.Name,
 		ClientID:         clientID,
 		ClientSecretHash: string(secretHash),
@@ -59,16 +67,24 @@ func (s *AgentService) Create(req models.CreateAgentRequest) (*models.CreateAgen
 		return nil, fmt.Errorf("failed to create agent: %w", err)
 	}
 
+	var teamUUID *uuid.UUID
+	if teamID != nil {
+		tu, _ := uuid.Parse(*teamID)
+		teamUUID = &tu
+	}
+
 	return &models.CreateAgentResponse{
 		Agent: models.Agent{
-			ID:        id,
-			Name:      req.Name,
-			ClientID:  clientID,
-			Scopes:    scopes,
-			IsActive:  true,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			ExpiresAt: expiresAt,
+			ID:             id,
+			OrganizationID: req.OrganizationID,
+			TeamID:         teamUUID,
+			Name:           req.Name,
+			ClientID:       clientID,
+			Scopes:         scopes,
+			IsActive:       true,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+			ExpiresAt:      expiresAt,
 		},
 		ClientSecret: clientSecret,
 		ClientID:     clientID,
@@ -93,6 +109,32 @@ func (s *AgentService) GetByID(id uuid.UUID) (*models.Agent, error) {
 
 func (s *AgentService) List() ([]models.Agent, error) {
 	agents, err := s.db.ListAgents()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list agents: %w", err)
+	}
+
+	result := make([]models.Agent, len(agents))
+	for i, a := range agents {
+		result[i] = *toModelAgent(&a)
+	}
+	return result, nil
+}
+
+func (s *AgentService) ListByOrganization(orgID string) ([]models.Agent, error) {
+	agents, err := s.db.ListAgentsByOrganization(orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list agents: %w", err)
+	}
+
+	result := make([]models.Agent, len(agents))
+	for i, a := range agents {
+		result[i] = *toModelAgent(&a)
+	}
+	return result, nil
+}
+
+func (s *AgentService) ListByTeam(teamID string) ([]models.Agent, error) {
+	agents, err := s.db.ListAgentsByTeam(teamID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list agents: %w", err)
 	}
@@ -262,8 +304,16 @@ func (s *AgentService) Reactivate(id uuid.UUID) error {
 }
 
 func toModelAgent(a *db.Agent) *models.Agent {
+	var teamUUID *uuid.UUID
+	if a.TeamID != nil {
+		tu, _ := uuid.Parse(*a.TeamID)
+		teamUUID = &tu
+	}
+
 	return &models.Agent{
 		ID:                uuid.MustParse(a.ID),
+		OrganizationID:    a.OrganizationID,
+		TeamID:            teamUUID,
 		Name:              a.Name,
 		ClientID:          a.ClientID,
 		ClientSecretHash:  a.ClientSecretHash,
