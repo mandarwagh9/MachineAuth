@@ -20,6 +20,12 @@ export function Layout() {
             >
               Tokens
             </NavLink>
+            <NavLink
+              to="/webhooks"
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              Webhooks
+            </NavLink>
           </nav>
         </div>
       </header>

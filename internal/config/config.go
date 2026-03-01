@@ -19,6 +19,9 @@ type Config struct {
 	RequireHTTPS        bool
 	AdminEmail          string
 	AdminPassword       string
+	WebhookWorkerCount  int
+	WebhookMaxRetries   int
+	WebhookTimeoutSecs  int
 }
 
 func Load() (*Config, error) {
@@ -35,6 +38,9 @@ func Load() (*Config, error) {
 		RequireHTTPS:        getEnvBool("REQUIRE_HTTPS", false),
 		AdminEmail:          getEnv("ADMIN_EMAIL", "admin@example.com"),
 		AdminPassword:       getEnv("ADMIN_PASSWORD", "changeme"),
+		WebhookWorkerCount:  getEnvInt("WEBHOOK_WORKER_COUNT", 3),
+		WebhookMaxRetries:   getEnvInt("WEBHOOK_MAX_RETRIES", 10),
+		WebhookTimeoutSecs:  getEnvInt("WEBHOOK_TIMEOUT_SECS", 10),
 	}
 
 	if cfg.Env == "development" {

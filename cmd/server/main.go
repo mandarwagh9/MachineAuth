@@ -40,9 +40,19 @@ func main() {
 
 	agentService := services.NewAgentService(database)
 	auditService := services.NewAuditService(database)
+	webhookService := services.NewWebhookService(database)
+
+	// Wire up webhook triggering in audit service
+	auditService.SetWebhookService(webhookService)
+
+	// Start webhook delivery worker
+	webhookWorker := services.NewDeliveryWorker(webhookService, cfg.WebhookWorkerCount)
+	webhookWorker.Start()
+	defer webhookWorker.Stop()
 
 	authHandler := handlers.NewAuthHandler(agentService, tokenService)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
+	webhookHandler := handlers.NewWebhookHandler(webhookService, auditService)
 
 	mux := http.NewServeMux()
 
@@ -67,6 +77,11 @@ func main() {
 		}
 	})
 	mux.HandleFunc("/api/agents/", agentsHandler.HandleAgent)
+
+	// Webhook routes
+	mux.HandleFunc("/api/webhooks", webhookHandler.ListAndCreate)
+	mux.HandleFunc("/api/webhooks/", webhookHandler.HandleWebhook)
+	mux.HandleFunc("/api/webhook-events", webhookHandler.HandleEvents)
 
 	loggedMux := middleware.Logging(mux)
 	corsMux := middleware.CORS(cfg.AllowedOrigins, loggedMux)

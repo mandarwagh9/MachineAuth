@@ -1,0 +1,64 @@
+.webhook-form {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.events-selector {
+  background: #0f0f1a;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.events-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.events-count {
+  margin-left: auto;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+
+.event-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.event-checkbox:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.event-checkbox input[type='checkbox'] {
+  accent-color: #6366f1;
+  width: 16px;
+  height: 16px;
+}
+
+.event-label {
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}

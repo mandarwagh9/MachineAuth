@@ -10,11 +10,18 @@ import (
 )
 
 type AuditService struct {
-	jsonDB *db.DB
+	jsonDB         *db.DB
+	webhookService *WebhookService
 }
 
 func NewAuditService(database *db.DB) *AuditService {
 	return &AuditService{jsonDB: database}
+}
+
+// SetWebhookService sets the webhook service for event triggering.
+// Called after both services are created to avoid circular dependency.
+func (s *AuditService) SetWebhookService(ws *WebhookService) {
+	s.webhookService = ws
 }
 
 func (s *AuditService) Log(action string, agentID *uuid.UUID, ipAddress, userAgent string) error {
@@ -32,26 +39,75 @@ func (s *AuditService) Log(action string, agentID *uuid.UUID, ipAddress, userAge
 	return s.jsonDB.AddAuditLog(log)
 }
 
+// triggerWebhook fires webhook events if webhookService is configured
+func (s *AuditService) triggerWebhook(event string, payload interface{}) {
+	if s.webhookService != nil {
+		s.webhookService.TriggerEvent(event, payload)
+	}
+}
+
 func (s *AuditService) LogAgentCreated(agent *models.Agent, ipAddress, userAgent string) error {
-	return s.Log("agent.created", &agent.ID, ipAddress, userAgent)
+	err := s.Log(EventAgentCreated, &agent.ID, ipAddress, userAgent)
+	s.triggerWebhook(EventAgentCreated, map[string]interface{}{
+		"event":      EventAgentCreated,
+		"agent_id":   agent.ID.String(),
+		"agent_name": agent.Name,
+		"client_id":  agent.ClientID,
+		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+	})
+	return err
 }
 
 func (s *AuditService) LogAgentDeleted(agentID uuid.UUID, ipAddress, userAgent string) error {
-	return s.Log("agent.deleted", &agentID, ipAddress, userAgent)
+	err := s.Log(EventAgentDeleted, &agentID, ipAddress, userAgent)
+	s.triggerWebhook(EventAgentDeleted, map[string]interface{}{
+		"event":    EventAgentDeleted,
+		"agent_id": agentID.String(),
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+	return err
 }
 
 func (s *AuditService) LogCredentialsRotated(agentID uuid.UUID, ipAddress, userAgent string) error {
-	return s.Log("agent.credentials_rotated", &agentID, ipAddress, userAgent)
+	err := s.Log(EventAgentCredentialsRotated, &agentID, ipAddress, userAgent)
+	s.triggerWebhook(EventAgentCredentialsRotated, map[string]interface{}{
+		"event":    EventAgentCredentialsRotated,
+		"agent_id": agentID.String(),
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+	return err
 }
 
 func (s *AuditService) LogTokenIssued(agentID uuid.UUID, ipAddress, userAgent string) error {
-	return s.Log("token.issued", &agentID, ipAddress, userAgent)
+	err := s.Log(EventTokenIssued, &agentID, ipAddress, userAgent)
+	s.triggerWebhook(EventTokenIssued, map[string]interface{}{
+		"event":    EventTokenIssued,
+		"agent_id": agentID.String(),
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+	return err
 }
 
 func (s *AuditService) LogTokenValidation(agentID *uuid.UUID, success bool, ipAddress, userAgent string) error {
-	action := "token.validation_success"
+	action := EventTokenValidationSuccess
 	if !success {
-		action = "token.validation_failed"
+		action = EventTokenValidationFailed
 	}
-	return s.Log(action, agentID, ipAddress, userAgent)
+	err := s.Log(action, agentID, ipAddress, userAgent)
+
+	payload := map[string]interface{}{
+		"event":     action,
+		"success":   success,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}
+	if agentID != nil {
+		payload["agent_id"] = agentID.String()
+	}
+	s.triggerWebhook(action, payload)
+	return err
+}
+
+// LogWebhook logs a webhook-related event and optionally triggers webhooks
+func (s *AuditService) LogWebhook(action string, webhookID uuid.UUID, ipAddress, userAgent string) error {
+	return s.Log(action, nil, ipAddress, userAgent)
 }

@@ -57,6 +57,41 @@ curl -X POST http://localhost:8081/oauth/token \
 curl http://localhost:8081/.well-known/jwks.json
 ```
 
+### Webhooks
+
+#### Create Webhook
+```bash
+curl -X POST http://localhost:8081/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Webhook",
+    "url": "https://example.com/webhooks",
+    "events": ["agent.created", "agent.deleted", "token.issued"]
+  }'
+```
+
+#### List Webhooks
+```bash
+curl http://localhost:8081/api/webhooks
+```
+
+#### Test Webhook
+```bash
+curl -X POST http://localhost:8081/api/webhooks/WEBHOOK_ID/test \
+  -H "Content-Type: application/json" \
+  -d '{"event": "webhook.test"}'
+```
+
+#### View Delivery History
+```bash
+curl http://localhost:8081/api/webhooks/WEBHOOK_ID/deliveries
+```
+
+#### Available Events
+```bash
+curl http://localhost:8081/api/webhook-events
+```
+
 ### Access Protected Endpoint
 ```bash
 curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
@@ -73,6 +108,11 @@ curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 - Credential rotation for agents
 - Scope-based permissions
 - Audit logging for agent lifecycle events
+- Webhook system with event-driven notifications
+- HMAC-SHA256 webhook signature verification
+- Exponential backoff retry for failed deliveries
+- Auto-disable on persistent webhook failures
+- Async webhook delivery with worker pool
 - Self-hosted deployment
 - JSON file-based storage (no database required)
 
@@ -83,7 +123,10 @@ curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 - **Credential Rotation** — Rotate an agent's client secret directly from the detail page with one-time display of the new secret
 - **Agent Deletion** — Delete agents with confirmation dialog from the list or detail view
 - **Token Generator** — Interactive tool to request OAuth 2.0 access tokens by selecting an agent, entering the client secret, and optionally specifying scopes. Displays the JWT with a copy-to-clipboard button
-- **Responsive Layout** — Header navigation with links to Agents and Tokens sections
+- **Responsive Layout** — Header navigation with links to Agents, Tokens, and Webhooks sections
+- **Webhook Management** — Create, view, edit, and delete webhook configurations with event selection
+- **Webhook Testing** — Send test deliveries to verify endpoint configuration
+- **Delivery History** — View webhook delivery attempts with status, errors, and retry information
 - **API Proxy** — Vite dev server proxies `/api`, `/oauth`, `/.well-known`, and `/health` to the Go backend
 
 ## Tech Stack

@@ -285,6 +285,16 @@ agentauth/
 ### JWKS
 - `GET /.well-known/jwks.json` - Get public keys for token verification
 
+### Webhooks
+- `POST /api/webhooks` - Create new webhook
+- `GET /api/webhooks` - List all webhooks
+- `GET /api/webhooks/:id` - Get webhook details
+- `PUT /api/webhooks/:id` - Update webhook configuration
+- `DELETE /api/webhooks/:id` - Delete webhook
+- `POST /api/webhooks/:id/test` - Send test delivery
+- `GET /api/webhooks/:id/deliveries` - Get delivery history
+- `GET /api/webhook-events` - List available event types
+
 ### Health
 - `GET /health` - Health check endpoint
 
@@ -310,6 +320,35 @@ agentauth/
 - `user_agent` TEXT
 - `created_at` TIMESTAMP
 
+### webhook_configs table
+- `id` UUID PRIMARY KEY
+- `organization_id` VARCHAR(255)
+- `team_id` VARCHAR(255)
+- `name` VARCHAR(255) NOT NULL
+- `url` TEXT NOT NULL
+- `secret` VARCHAR(255) NOT NULL
+- `events` TEXT[] NOT NULL
+- `is_active` BOOLEAN DEFAULT true
+- `max_retries` INTEGER DEFAULT 10
+- `retry_backoff_base` INTEGER DEFAULT 2
+- `created_at` TIMESTAMP
+- `updated_at` TIMESTAMP
+- `last_tested_at` TIMESTAMP (optional)
+- `consecutive_fails` INTEGER DEFAULT 0
+
+### webhook_deliveries table
+- `id` UUID PRIMARY KEY
+- `webhook_config_id` UUID REFERENCES webhook_configs(id)
+- `event` VARCHAR(100)
+- `payload` TEXT
+- `headers` TEXT
+- `status` VARCHAR(50) (pending, delivered, failed, retrying, dead)
+- `attempts` INTEGER DEFAULT 0
+- `last_attempt_at` TIMESTAMP (optional)
+- `last_error` TEXT
+- `next_retry_at` TIMESTAMP (optional)
+- `created_at` TIMESTAMP
+
 ## Environment Variables
 
 ```env
@@ -332,6 +371,11 @@ ALLOWED_ORIGINS=http://localhost:3000
 # Admin
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=changeme
+
+# Webhooks
+WEBHOOK_WORKER_COUNT=3
+WEBHOOK_MAX_RETRIES=10
+WEBHOOK_TIMEOUT_SECS=10
 ```
 
 ## Common Development Tasks
