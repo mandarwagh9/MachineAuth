@@ -7,7 +7,8 @@ import {
   Activity,
   Key,
   Shield,
-  User
+  User,
+  Webhook
 } from 'lucide-react'
 
 const navigation = [
@@ -15,6 +16,7 @@ const navigation = [
   { name: 'Organizations', href: '/organizations', icon: Building2 },
   { name: 'Agents', href: '/agents', icon: Users },
   { name: 'Tokens', href: '/tokens', icon: Key },
+  { name: 'Webhooks', href: '/webhooks', icon: Webhook },
   { name: 'Metrics', href: '/metrics', icon: Activity },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'My Account', href: '/my-account', icon: User },

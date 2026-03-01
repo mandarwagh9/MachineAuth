@@ -11,6 +11,8 @@ import { AgentsPage } from './pages/Agents'
 import { CreateAgentPage } from './pages/CreateAgent'
 import { MetricsPage } from './pages/Metrics'
 import { MyAccountPage } from './pages/MyAccount'
+import { TokensPage } from './pages/Tokens'
+import { AgentDetailPage } from './pages/AgentDetail'
 import { OrganizationsPage } from './pages/Organizations'
 import { CreateOrganizationPage } from './pages/CreateOrganization'
 import { OrganizationDetailPage } from './pages/OrganizationDetail'
@@ -95,9 +97,9 @@ function AppRoutes() {
         <Route path="organizations/:id" element={<OrganizationDetailPage />} />
         <Route path="agents" element={<AgentsPage />} />
         <Route path="agents/new" element={<CreateAgentPage />} />
-        <Route path="agents/:id" element={<AgentsPage />} />
+        <Route path="agents/:id" element={<AgentDetailPage />} />
         <Route path="metrics" element={<MetricsPage />} />
-        <Route path="tokens" element={<AgentsPage />} />
+        <Route path="tokens" element={<TokensPage />} />
         <Route path="settings" element={<Dashboard />} />
         <Route path="my-account" element={<MyAccountPage />} />
         <Route path="webhooks" element={<WebhookList />} />
