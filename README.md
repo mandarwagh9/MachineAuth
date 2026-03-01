@@ -1,11 +1,11 @@
 <h1 align="center">
   <br>
-  MachineAuth
+  🔐 MachineAuth
   <br>
 </h1>
 
 <p align="center">
-  <strong>Secure OAuth 2.0 authentication for AI agents and machine-to-machine communication.</strong>
+  <strong>Self-hosted OAuth 2.0 authentication for AI agents and machine-to-machine communication.</strong>
 </p>
 
 <p align="center">
@@ -18,89 +18,130 @@
   <a href="https://github.com/mandarwagh9/MachineAuth/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/mandarwagh9/MachineAuth?style=flat-square" alt="License">
   </a>
+  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go 1.21+">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 18">
+  <img src="https://img.shields.io/badge/TypeScript-5.3-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#features">Features</a> •
+  <a href="#admin-dashboard">Dashboard</a> •
+  <a href="#api-reference">API</a> •
+  <a href="#sdks">SDKs</a> •
+  <a href="#deployment">Deploy</a>
 </p>
 
 ---
 
-## Table of Contents
+## What is MachineAuth?
 
-- [About](#about)
-- [Demo](#demo)
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Features](#features)
-- [Usage](#usage)
-- [API Reference](#api-reference)
-- [Configuration](#configuration)
-- [Deployment](#deployment)
-- [Security](#security)
-- [Contributing](#contributing)
-- [License](#license)
+MachineAuth is a **self-hosted OAuth 2.0 server** purpose-built for authenticating AI agents and machines. Instead of sharing long-lived API keys, your agents authenticate using **OAuth 2.0 Client Credentials** and receive short-lived **RS256-signed JWT tokens**.
 
----
+Think of it as Auth0, but for bots — lightweight, self-hosted, zero external dependencies.
 
-## About
+### Why MachineAuth?
 
-MachineAuth is a self-hosted OAuth 2.0 server for authenticating **AI agents** and machines. 
-
-What is an AI agent in this context? A software bot (like OpenCLAW, Claude Code, etc.) that makes API calls to access protected resources. Instead of sharing long-lived API keys, your agents can authenticate using OAuth 2.0 Client Credentials and receive short-lived JWT tokens.
-
-**Why?**
-- 🔑 No more sharing API keys
-- ⏱️ Short-lived tokens (configurable)
-- 🔄 Easy credential rotation
-- 🛡️ Industry-standard security
-
----
-
-## Demo
-
-```bash
-# Create an agent
-$ curl -X POST http://localhost:8081/api/agents \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "scopes": ["read"]}'
-  
-# Response: {"client_id": "abc-123", "client_secret": "secret-xyz", ...}
-
-# Get token
-$ curl -X POST http://localhost:8081/oauth/token \
-  -d "grant_type=client_credentials" \
-  -d "client_id=abc-123" \
-  -d "client_secret=secret-xyz"
-
-# Response: {"access_token": "eyJ...", "expires_in": 3600, "refresh_token": "..."}
-
-# Access protected resource
-$ curl -H "Authorization: Bearer eyJ..." http://localhost:8081/api/verify
-
-# Response: {"secret_code": "AGENT-AUTH-2026-XK9M", "message": "Your agent is NOT hallucinating!"}
-```
-
-**Live Demo:** https://auth.writesomething.fun
+| Problem | MachineAuth Solution |
+|---------|---------------------|
+| Sharing long-lived API keys | Short-lived JWTs with configurable expiry |
+| No credential rotation | One-click rotation, zero downtime |
+| No visibility into agent activity | Per-agent usage tracking, audit logs, metrics |
+| Complex auth infrastructure | Single binary, JSON file storage for dev, Postgres for prod |
+| No webhook notifications | Built-in webhook system with retry & delivery tracking |
+| Multi-tenant headaches | Native organization & team scoping with JWT claims |
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone and run
 git clone https://github.com/mandarwagh9/MachineAuth.git
 cd MachineAuth
 go run ./cmd/server
 ```
 
-Server runs on `http://localhost:8080`
+Server starts on `http://localhost:8080`. No database needed — uses JSON file storage by default.
 
-That's it! No database, no dependencies. Uses JSON file storage by default.
+```bash
+# 1. Create an agent
+curl -s -X POST http://localhost:8080/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "scopes": ["read", "write"]}' | jq .
+
+# 2. Get a token
+curl -s -X POST http://localhost:8080/oauth/token \
+  -d "grant_type=client_credentials" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET" | jq .
+
+# 3. Use the token
+curl -s -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  http://localhost:8080/api/agents/me | jq .
+```
+
+**Live demo:** [https://auth.writesomething.fun](https://auth.writesomething.fun)
 
 ---
 
-## Admin UI
+## Features
 
-MachineAuth includes a beautiful admin dashboard built with React + TailwindCSS.
+### Core Authentication
+- **OAuth 2.0 Client Credentials** — Industry-standard M2M authentication flow
+- **RS256 JWT Tokens** — Asymmetric signing with auto-generated RSA keys
+- **Token Introspection** — Validate tokens via RFC 7662 compliant endpoint
+- **Token Revocation** — Invalidate tokens instantly via RFC 7009
+- **Refresh Tokens** — Renew access without re-authenticating
+- **JWKS Endpoint** — Public key discovery at `/.well-known/jwks.json`
 
-### Quick Start
+### Agent Management
+- **Full CRUD** — Create, list, view, update, delete agents
+- **Credential Rotation** — Rotate client secrets with zero downtime
+- **Scoped Access** — Fine-grained scopes per agent
+- **Usage Tracking** — Token count, refresh count, last activity per agent
+- **Agent Self-Service** — Agents manage their own lifecycle via JWT auth
+- **Activation Control** — Deactivate/reactivate agents without deletion
+
+### Multi-Tenant
+- **Organizations** — Isolated tenant environments with unique slugs
+- **Teams** — Group agents under teams within organizations
+- **Org-Scoped Agents** — Agents belong to orgs, JWT claims include `org_id`/`team_id`
+- **API Keys** — Per-organization API key management
+
+### Webhooks
+- **Event Notifications** — Real-time HTTP callbacks for agent/token events
+- **Delivery Tracking** — Full delivery history with status, attempts, errors
+- **Automatic Retries** — Exponential backoff with configurable retry count
+- **Webhook Testing** — Send test payloads to verify endpoint connectivity
+- **Background Workers** — Async delivery processing (configurable worker count)
+
+### Operations
+- **Health Checks** — `/health` and `/health/ready` endpoints
+- **Metrics** — Token/agent/error statistics at `/metrics`
+- **Audit Logging** — Track all agent and token operations
+- **CORS** — Configurable cross-origin settings
+- **Graceful Shutdown** — Clean shutdown on SIGINT/SIGTERM
+- **Zero-DB Mode** — JSON file storage for development (no database needed)
+
+---
+
+## Admin Dashboard
+
+MachineAuth ships with a full admin UI built with **React 18 + TypeScript + Tailwind CSS**.
+
+### Pages
+
+| Page | Description |
+|------|-------------|
+| **Dashboard** | Real-time metrics, health status, system overview |
+| **Agents** | Browse, search, filter agents; view details, rotate credentials |
+| **Agent Detail** | Credentials, scopes, usage stats, rotation, deactivation |
+| **Organizations** | Multi-tenant org management with teams and agents |
+| **Token Tools** | Generate, introspect, and revoke tokens from the UI |
+| **Webhooks** | Create, manage, test webhooks; view delivery history |
+| **Metrics** | Detailed token issuance, refresh, revocation statistics |
+
+### Running the Dashboard
 
 ```bash
 cd web
@@ -108,423 +149,427 @@ npm install
 npm run dev
 ```
 
-Access the admin UI at `http://localhost:3000`
+Open `http://localhost:3000` — proxies API calls to the Go backend on port 8081.
 
-### Login Credentials
+**Default credentials:** `admin` / `admin`
 
-- **Username:** `admin`
-- **Password:** `admin`
+> ⚠️ Change admin credentials via `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars before deploying.
 
-> ⚠️ Change the password in `web/src/App.tsx` before deploying!
-
-### Features
-
-- 📊 **Dashboard** - Real-time metrics and statistics
-- 👥 **Agents** - Create, view, rotate, deactivate agents
-- 📈 **Metrics** - Token issuance, refresh, revocation stats
-- 🔐 **Secure** - Basic authentication required
-- 🏢 **Organizations** - Multi-tenant organization management
-- 👥 **Teams** - Team-based access control
-- 🔑 **API Keys** - API key management per organization
-- 📄 **Self-Service** - Agents manage their own accounts
-
-### Building for Production
+### Production Build
 
 ```bash
 cd web
-npm run build
-```
-
-The built files will be in `web/dist/`
-
----
-
-## Installation
-
-### Requirements
-
-- **Go 1.21+** - [Install Go](https://go.dev/doc/install)
-
-### Build from Source
-
-```bash
-# Clone
-git clone https://github.com/mandarwagh9/MachineAuth.git
-cd MachineAuth
-
-# Build
-go build -o machineauth server-main.go
-
-# Run
-./machineauth
-```
-
-### Pre-built Binaries
-
-Download from [Releases](https://github.com/mandarwagh9/MachineAuth/releases) (coming soon).
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| 🔑 OAuth 2.0 Client Credentials | Industry-standard M2M authentication |
-| 📜 JWT Tokens | RS256 signed, configurable expiry |
-| 🔄 Refresh Tokens | Get new access without re-authenticating |
-| 🔍 Token Introspection | Validate tokens via `/oauth/introspect` |
-| 🚫 Token Revocation | Invalidate tokens via `/oauth/revoke` |
-| 🔐 Agent Rotation | Rotate credentials via API |
-| 🤖 Agent Self-Service | Agents manage own accounts via API |
-| 📊 Usage Tracking | Track tokens, refreshes, activity per agent |
-| 📈 Per-Agent Metrics | Agents can view their own usage statistics |
-| 📊 Metrics | Track tokens issued, revoked, etc. |
-| 🏢 Multi-Tenant | Organizations and Teams support |
-| 🔑 API Keys | API key management per organization |
-| 🌐 CORS | Configurable cross-origin settings |
-| 📁 Zero-DB | JSON file storage - no external dependencies |
-
----
-
-## Usage
-
-### 1. Create an Agent
-
-```bash
-curl -X POST http://localhost:8081/api/agents \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "scopes": ["read", "write"]}'
-```
-
-**Response:**
-```json
-{
-  "client_id": "abc-123",
-  "client_secret": "xyz-789",
-  "message": "Save this client_secret - it will not be shown again!"
-}
-```
-
-> ⚠️ Save the `client_id` and `client_secret` - the secret is only shown once!
-
-### 2. Get Access Token
-
-```bash
-curl -X POST http://localhost:8081/oauth/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials" \
-  -d "client_id=YOUR_CLIENT_ID" \
-  -d "client_secret=YOUR_CLIENT_SECRET"
-```
-
-**Response:**
-```json
-{
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "refresh_token": "uuid-refresh-token"
-}
-```
-
-### 3. Use the Token
-
-```bash
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:8081/api/verify
-```
-
-### 4. Introspect Token
-
-```bash
-curl -X POST http://localhost:8081/oauth/introspect \
-  -d "token=YOUR_ACCESS_TOKEN"
-```
-
-**Response:**
-```json
-{
-  "active": true,
-  "scope": "read write",
-  "client_id": "abc-123",
-  "exp": 1234567890,
-  "iat": 1234567890,
-  "token_type": "Bearer"
-}
-```
-
-### 5. Refresh Token
-
-```bash
-curl -X POST http://localhost:8081/oauth/refresh \
-  -d "refresh_token=YOUR_REFRESH_TOKEN" \
-  -d "client_id=YOUR_CLIENT_ID" \
-  -d "client_secret=YOUR_CLIENT_SECRET"
-```
-
-### 6. Revoke Token
-
-```bash
-curl -X POST http://localhost:8081/oauth/revoke \
-  -d "token=YOUR_ACCESS_TOKEN"
-```
-
----
-
-## API Keys
-
-MachineAuth supports API keys for simpler machine-to-machine authentication.
-
-### Create an API Key
-
-```bash
-curl -X POST http://localhost:8081/api/organizations/{org_id}/api-keys \
-  -H "Content-Type: application/json" \
-  -d '{"name": "production-key", "expires_in": 86400}'
-```
-
-**Response:**
-```json
-{
-  "api_key": {
-    "id": "uuid",
-    "organization_id": "org-uuid",
-    "name": "production-key",
-    "prefix": "sk_1cF4CG1RE",
-    "is_active": true,
-    "created_at": "2026-03-01T12:00:00Z"
-  },
-  "key": "sk_1cF4CG1REhHtXrrxWGcI5jlTX92zeWRyw7goSmopwAs"
-}
-```
-
-> ⚠️ Save the `key` - it will not be shown again!
-
-### List API Keys
-
-```bash
-curl http://localhost:8081/api/organizations/{org_id}/api-keys
-```
-
-### Revoke API Key
-
-```bash
-curl -X DELETE http://localhost:8081/api/organizations/{org_id}/api-keys/{key_id}
-```
-
-### Using API Keys
-
-Use the API key in the `Authorization` header:
-
-```bash
-curl -H "Authorization: Bearer sk_1cF4CG1REhHtXrrxWGcI5jlTX92zeWRyw7goSmopwAs" \
-  http://localhost:8081/api/verify
-```
-
-### API Key Model
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier |
-| `organization_id` | string | Organization UUID |
-| `team_id` | string (optional) | Team UUID |
-| `name` | string | Key name |
-| `prefix` | string | First 12 chars (for identification) |
-| `is_active` | boolean | Whether key is active |
-| `expires_at` | timestamp (optional) | Expiration time |
-| `last_used_at` | timestamp (optional) | Last usage time |
-| `created_at` | timestamp | Creation time |
-
----
-
-## Multi-Tenant (Organizations & Teams)
-
-### Create an Organization
-
-```bash
-curl -X POST http://localhost:8081/api/organizations \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Acme Corp", "slug": "acme", "owner_email": "admin@acme.com"}'
-```
-
-### Create a Team
-
-```bash
-curl -X POST http://localhost:8081/api/organizations/{org_id}/teams \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Engineering", "description": "Engineering team"}'
-```
-
-### Create Agent in Organization
-
-```bash
-curl -X POST http://localhost:8081/api/organizations/{org_id}/agents \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "scopes": ["read", "write"]}'
-```
-
-### List Agents in Organization
-
-```bash
-curl http://localhost:8081/api/organizations/{org_id}/agents
-```
-
-### JWT Token Claims
-
-Tokens include `org_id` and `team_id` for multi-tenant access control:
-
-```json
-{
-  "iss": "https://auth.example.com",
-  "sub": "client_id",
-  "agent_id": "agent-uuid",
-  "org_id": "organization-uuid",
-  "team_id": "team-uuid (optional)",
-  "scope": ["read", "write"],
-  "jti": "token-uuid",
-  "exp": 1234567890,
-  "iat": 1234567890
-}
+npm run build    # Output in web/dist/
+npm run start    # Serve with built-in static server on port 3000
 ```
 
 ---
 
 ## API Reference
 
-| Endpoint | Method | Description | Example |
-|----------|--------|-------------|---------|
-| `/` | GET | Service info | `curl localhost:8081/` |
-| `/health` | GET | Health check | `curl localhost:8081/health` |
-| `/oauth/token` | POST | Get access token | [See above](#2-get-access-token) |
-| `/oauth/introspect` | POST | Validate token | `curl -d "token=..." localhost:8081/oauth/introspect` |
-| `/oauth/revoke` | POST | Revoke token | `curl -d "token=..." localhost:8081/oauth/revoke` |
-| `/oauth/refresh` | POST | Refresh access token | `curl -d "refresh_token=..." localhost:8081/oauth/refresh` |
-| `/.well-known/jwks.json` | GET | Public keys | `curl localhost:8081/.well-known/jwks.json` |
-| `/api/agents` | GET | List agents | `curl localhost:8081/api/agents` |
-| `/api/agents` | POST | Create agent | [See above](#1-create-an-agent) |
-| `/api/agents/{id}` | GET | Agent details | `curl localhost:8081/api/agents/{id}` |
-| `/api/agents/{id}/rotate` | POST | Rotate credentials | `curl -X POST localhost:8081/api/agents/{id}/rotate` |
-| `/api/agents/{id}/deactivate` | POST | Deactivate agent | `curl -X POST localhost:8081/api/agents/{id}/deactivate` |
-| `/api/agents/me` | GET | Get own profile | `curl -H "Authorization: Bearer ..." localhost:8081/api/agents/me` |
-| `/api/agents/me/usage` | GET | Get own usage stats | `curl -H "Authorization: Bearer ..." localhost:8081/api/agents/me/usage` |
-| `/api/agents/me/rotate` | POST | Rotate own credentials | `curl -X POST -H "Authorization: Bearer ..." localhost:8081/api/agents/me/rotate` |
-| `/api/agents/me/deactivate` | POST | Deactivate own account | `curl -X POST -H "Authorization: Bearer ..." localhost:8081/api/agents/me/deactivate` |
-| `/api/agents/me/reactivate` | POST | Reactivate own account | `curl -X POST -H "Authorization: Bearer ..." localhost:8081/api/agents/me/reactivate` |
-| `/api/agents/me/delete` | DELETE | Delete own account | `curl -X DELETE -H "Authorization: Bearer ..." localhost:8081/api/agents/me/delete` |
-| `/api/verify` | GET | Verify token | `curl -H "Authorization: Bearer ..." localhost:8081/api/verify` |
-| `/metrics` | GET | Server metrics | `curl localhost:8081/metrics` |
+### OAuth 2.0 Endpoints
 
-### Organizations API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/oauth/token` | Issue access + refresh token |
+| `POST` | `/oauth/introspect` | Validate and inspect a token |
+| `POST` | `/oauth/revoke` | Revoke an access token |
+| `POST` | `/oauth/refresh` | Refresh an access token |
+| `GET` | `/.well-known/jwks.json` | Public key set (JWKS) |
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/organizations` | GET | List organizations |
-| `/api/organizations` | POST | Create organization |
-| `/api/organizations/{id}` | GET | Get organization |
-| `/api/organizations/{id}` | PUT | Update organization |
-| `/api/organizations/{id}` | DELETE | Delete organization |
-| `/api/organizations/{id}/agents` | GET | List agents in organization |
-| `/api/organizations/{id}/agents` | POST | Create agent in organization |
+### Agent Management
 
-### Teams API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/agents` | List all agents |
+| `POST` | `/api/agents` | Create a new agent |
+| `GET` | `/api/agents/{id}` | Get agent details |
+| `DELETE` | `/api/agents/{id}` | Delete an agent |
+| `POST` | `/api/agents/{id}/rotate` | Rotate agent credentials |
+| `POST` | `/api/agents/{id}/deactivate` | Deactivate an agent |
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/organizations/{id}/teams` | GET | List teams |
-| `/api/organizations/{id}/teams` | POST | Create team |
+### Agent Self-Service (JWT Auth Required)
 
-### API Keys API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/agents/me` | Get own profile |
+| `GET` | `/api/agents/me/usage` | Get own usage statistics |
+| `POST` | `/api/agents/me/rotate` | Rotate own credentials |
+| `POST` | `/api/agents/me/deactivate` | Deactivate own account |
+| `POST` | `/api/agents/me/reactivate` | Reactivate own account |
+| `DELETE` | `/api/agents/me/delete` | Delete own account |
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/organizations/{id}/api-keys` | GET | List API keys |
-| `/api/organizations/{id}/api-keys` | POST | Create API key |
-| `/api/organizations/{id}/api-keys/{key_id}` | DELETE | Revoke API key |
+### Webhooks
 
-### Agent Self-Service API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/webhooks` | List webhooks |
+| `POST` | `/api/webhooks` | Create webhook |
+| `GET` | `/api/webhooks/{id}` | Get webhook details |
+| `PUT` | `/api/webhooks/{id}` | Update webhook |
+| `DELETE` | `/api/webhooks/{id}` | Delete webhook |
+| `POST` | `/api/webhooks/{id}/test` | Send test delivery |
+| `GET` | `/api/webhooks/{id}/deliveries` | Get delivery history |
+| `GET` | `/api/webhook-events` | List available event types |
 
-Agents can manage their own accounts using JWT authentication:
+### Organizations & Teams
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/organizations` | List organizations |
+| `POST` | `/api/organizations` | Create organization |
+| `GET` | `/api/organizations/{id}` | Get organization |
+| `PUT` | `/api/organizations/{id}` | Update organization |
+| `DELETE` | `/api/organizations/{id}` | Delete organization |
+| `GET` | `/api/organizations/{id}/teams` | List teams |
+| `POST` | `/api/organizations/{id}/teams` | Create team |
+| `GET` | `/api/organizations/{id}/agents` | List org agents |
+| `POST` | `/api/organizations/{id}/agents` | Create org agent |
+
+### API Keys
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/organizations/{id}/api-keys` | List API keys |
+| `POST` | `/api/organizations/{id}/api-keys` | Create API key |
+| `DELETE` | `/api/organizations/{id}/api-keys/{key_id}` | Revoke API key |
+
+### System
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Service info + version |
+| `GET` | `/health` | Health check |
+| `GET` | `/health/ready` | Readiness check (includes agent count) |
+| `GET` | `/metrics` | Token/agent/error metrics |
+| `POST` | `/api/verify` | Verify JWT and return agent info |
+
+---
+
+## Usage Examples
+
+### Create an Agent
 
 ```bash
-# Get own profile
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:8081/api/agents/me
-
-# Get usage statistics (tokens issued, refreshes, activity)
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:8081/api/agents/me/usage
-
-# Rotate credentials
-curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:8081/api/agents/me/rotate
-
-# Deactivate account
-curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:8081/api/agents/me/deactivate
-
-# Delete account
-curl -X DELETE -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:8081/api/agents/me/delete
+curl -X POST http://localhost:8080/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "scopes": ["read", "write"]}'
 ```
 
-### HTTP Status Codes
+```json
+{
+  "agent": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "my-agent",
+    "client_id": "cid_a1b2c3d4e5f6",
+    "scopes": ["read", "write"],
+    "is_active": true,
+    "created_at": "2026-03-01T12:00:00Z"
+  },
+  "client_secret": "cs_xK9mPqR...",
+  "message": "Save this client_secret - it will not be shown again!"
+}
+```
 
-| Code | Meaning |
-|------|---------|
-| 200 | Success |
-| 400 | Bad request |
-| 401 | Unauthorized (invalid credentials/token) |
-| 404 | Not found |
-| 405 | Method not allowed |
+> ⚠️ The `client_secret` is only returned once. Store it securely.
+
+### Get an Access Token
+
+```bash
+curl -X POST http://localhost:8080/oauth/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=cid_a1b2c3d4e5f6" \
+  -d "client_secret=cs_xK9mPqR..."
+```
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "rt_8f14e45f..."
+}
+```
+
+### Introspect a Token
+
+```bash
+curl -X POST http://localhost:8080/oauth/introspect \
+  -d "token=eyJhbGciOiJSUzI1NiIs..."
+```
+
+```json
+{
+  "active": true,
+  "client_id": "cid_a1b2c3d4e5f6",
+  "scope": "read write",
+  "token_type": "Bearer",
+  "exp": 1709308800,
+  "iat": 1709305200
+}
+```
+
+### Refresh a Token
+
+```bash
+curl -X POST http://localhost:8080/oauth/refresh \
+  -d "refresh_token=rt_8f14e45f..." \
+  -d "client_id=cid_a1b2c3d4e5f6" \
+  -d "client_secret=cs_xK9mPqR..."
+```
+
+### Revoke a Token
+
+```bash
+curl -X POST http://localhost:8080/oauth/revoke \
+  -d "token=eyJhbGciOiJSUzI1NiIs..."
+```
+
+### Rotate Agent Credentials
+
+```bash
+curl -X POST http://localhost:8080/api/agents/{agent_id}/rotate
+```
+
+Returns a new `client_secret` — the old one is immediately invalidated.
+
+### Agent Self-Service
+
+Agents can manage themselves using their JWT token:
+
+```bash
+# View own profile
+curl -H "Authorization: Bearer eyJ..." http://localhost:8080/api/agents/me
+
+# Check usage stats
+curl -H "Authorization: Bearer eyJ..." http://localhost:8080/api/agents/me/usage
+
+# Rotate own credentials
+curl -X POST -H "Authorization: Bearer eyJ..." http://localhost:8080/api/agents/me/rotate
+
+# Deactivate own account
+curl -X POST -H "Authorization: Bearer eyJ..." http://localhost:8080/api/agents/me/deactivate
+
+# Delete own account permanently
+curl -X DELETE -H "Authorization: Bearer eyJ..." http://localhost:8080/api/agents/me/delete
+```
+
+### Webhooks
+
+```bash
+# Create a webhook
+curl -X POST http://localhost:8080/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Prod Notifications",
+    "url": "https://example.com/webhooks",
+    "events": ["agent.created", "agent.deleted", "token.issued"],
+    "max_retries": 5
+  }'
+
+# Test it
+curl -X POST http://localhost:8080/api/webhooks/{id}/test \
+  -H "Content-Type: application/json" \
+  -d '{"event": "webhook.test"}'
+
+# Check delivery history
+curl http://localhost:8080/api/webhooks/{id}/deliveries
+```
+
+### Organizations & API Keys
+
+```bash
+# Create an organization
+curl -X POST http://localhost:8080/api/organizations \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Acme Corp", "slug": "acme", "owner_email": "admin@acme.com"}'
+
+# Create a team
+curl -X POST http://localhost:8080/api/organizations/{org_id}/teams \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Engineering", "description": "Engineering team"}'
+
+# Create an API key
+curl -X POST http://localhost:8080/api/organizations/{org_id}/api-keys \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production-key", "expires_in": 86400}'
+```
+
+API keys can be used in place of JWT tokens:
+
+```bash
+curl -H "Authorization: Bearer sk_1cF4CG1RE..." http://localhost:8080/api/verify
+```
+
+---
+
+## JWT Token Claims
+
+Tokens issued by MachineAuth include rich claims for authorization decisions:
+
+```json
+{
+  "iss": "https://auth.yourdomain.com",
+  "sub": "cid_a1b2c3d4e5f6",
+  "agent_id": "550e8400-e29b-41d4-a716-446655440000",
+  "org_id": "org-uuid",
+  "team_id": "team-uuid",
+  "scope": ["read", "write"],
+  "jti": "unique-token-id",
+  "exp": 1709308800,
+  "iat": 1709305200
+}
+```
+
+Validate tokens using the public key from `/.well-known/jwks.json`.
+
+---
+
+## SDKs
+
+Official client libraries for TypeScript and Python.
+
+### TypeScript
+
+```bash
+npm install @machineauth/sdk
+```
+
+```typescript
+import { MachineAuthClient } from '@machineauth/sdk'
+
+const client = new MachineAuthClient({
+  baseUrl: 'https://auth.yourdomain.com',
+  clientId: 'cid_a1b2c3d4e5f6',
+  clientSecret: 'cs_xK9mPqR...',
+})
+
+// Get a token
+const token = await client.getToken({ scope: 'read write' })
+
+// List agents
+const agents = await client.listAgents()
+
+// Self-service
+const me = await client.getMe()
+```
+
+### Python
+
+```bash
+pip install machineauth
+```
+
+```python
+from machineauth import MachineAuthClient
+
+client = MachineAuthClient(
+    base_url="https://auth.yourdomain.com",
+    client_id="cid_a1b2c3d4e5f6",
+    client_secret="cs_xK9mPqR...",
+)
+
+# Get a token
+token = client.get_token(scope="read write")
+
+# Async support
+from machineauth import AsyncMachineAuthClient
+
+async_client = AsyncMachineAuthClient(...)
+token = await async_client.get_token(scope="read write")
+```
+
+See [sdk/README.md](sdk/README.md) for the full SDK documentation.
 
 ---
 
 ## Configuration
 
-Environment variables:
+All configuration via environment variables (or `.env` file):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | 8081 | Server port |
-| `ISSUER` | https://auth.writesomething.fun | Token issuer URL |
-| `ACCESS_TOKEN_EXPIRY` | 3600 | Access token TTL (seconds) |
-| `REFRESH_TOKEN_EXPIRY` | 604800 | Refresh token TTL (7 days) |
-| `CORS_ORIGINS` | * | Allowed origins (comma-separated) |
-| `ENABLE_METRICS` | true | Enable `/metrics` endpoint |
+| `PORT` | `8080` | Server listen port |
+| `ENV` | `development` | Environment (`development` / `production`) |
+| `DATABASE_URL` | `json:machineauth.json` | Database connection string |
+| `JWT_SIGNING_ALGORITHM` | `RS256` | JWT signing algorithm |
+| `JWT_KEY_ID` | `key-1` | JWKS key identifier |
+| `JWT_ACCESS_TOKEN_EXPIRY` | `3600` | Access token TTL in seconds (1 hour) |
+| `ALLOWED_ORIGINS` | `http://localhost:3000` | CORS allowed origins (comma-separated) |
+| `REQUIRE_HTTPS` | `false` | Enforce HTTPS redirects |
+| `ADMIN_EMAIL` | `admin@example.com` | Admin dashboard email |
+| `ADMIN_PASSWORD` | `changeme` | Admin dashboard password |
+| `WEBHOOK_WORKER_COUNT` | `3` | Concurrent webhook delivery workers |
+| `WEBHOOK_MAX_RETRIES` | `10` | Max delivery retry attempts |
+| `WEBHOOK_TIMEOUT_SECS` | `10` | Webhook HTTP request timeout |
 
-Example:
+### Database Options
+
 ```bash
-export PORT=8081
-export ISSUER=https://auth.yourdomain.com
-export ACCESS_TOKEN_EXPIRY=1800
-./machineauth
+# JSON file (default, zero deps, great for dev)
+DATABASE_URL=json:machineauth.json
+
+# PostgreSQL (recommended for production)
+DATABASE_URL=postgresql://user:pass@localhost:5432/machineauth
+```
+
+### Example `.env`
+
+```env
+PORT=8080
+ENV=production
+DATABASE_URL=postgresql://machineauth:secret@db:5432/machineauth
+JWT_ACCESS_TOKEN_EXPIRY=1800
+ALLOWED_ORIGINS=https://dashboard.yourdomain.com
+ADMIN_PASSWORD=your-secure-password
+WEBHOOK_WORKER_COUNT=5
 ```
 
 ---
 
 ## Deployment
 
-### Docker
+### Docker Compose (Recommended)
 
-```yaml
-version: '3.8'
+```bash
+git clone https://github.com/mandarwagh9/MachineAuth.git
+cd MachineAuth
+docker-compose up -d
+```
 
-services:
-  machineauth:
-    image: machineauth
-    ports:
-      - "8081:8081"
-    volumes:
-      - ./data:/opt/machineauth
-    environment:
-      - ISSUER=https://auth.yourdomain.com
-      - ACCESS_TOKEN_EXPIRY=3600
-      - REFRESH_TOKEN_EXPIRY=604800
-    restart: unless-stopped
+This starts three services:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| **postgres** | 5432 | PostgreSQL 15 database |
+| **server** | 8080 | Go API server |
+| **web** | 80 | React admin dashboard |
+
+### Docker (Server Only)
+
+```dockerfile
+# docker/Dockerfile.server — Multi-stage build
+FROM golang:1.21-alpine AS builder
+# ... builds to /server
+
+FROM alpine:3.19
+COPY --from=builder /server .
+EXPOSE 8080
+CMD ["./server"]
 ```
 
 ```bash
-docker-compose up -d
+docker build -f docker/Dockerfile.server -t machineauth .
+docker run -p 8080:8080 -e DATABASE_URL=json:/data/machineauth.json machineauth
+```
+
+### Build from Source
+
+```bash
+# Requirements: Go 1.21+
+go build -o machineauth ./cmd/server
+./machineauth
 ```
 
 ### Systemd (Linux)
@@ -539,106 +584,140 @@ Type=simple
 User=machineauth
 WorkingDirectory=/opt/machineauth
 ExecStart=/opt/machineauth/machineauth
+EnvironmentFile=/opt/machineauth/.env
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl daemon-reload
 sudo systemctl enable machineauth
 sudo systemctl start machineauth
 ```
 
 ---
 
-### Webhooks
+## Architecture
 
-#### Create Webhook
-```bash
-curl -X POST http://localhost:8081/api/webhooks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Webhook",
-    "url": "https://example.com/webhooks",
-    "events": ["agent.created", "agent.deleted", "token.issued"]
-  }'
+```
+┌─────────────────┐     ┌──────────────┐     ┌──────────────┐
+│  React Admin UI │────▶│   Go Server  │────▶│  PostgreSQL   │
+│  (Tailwind CSS) │     │  (net/http)  │     │  or JSON file │
+└─────────────────┘     └──────┬───────┘     └──────────────┘
+                               │
+                    ┌──────────┼──────────┐
+                    │          │          │
+              ┌─────▼──┐ ┌────▼───┐ ┌────▼────┐
+              │ Agents  │ │ Tokens │ │Webhooks │
+              │ Service │ │Service │ │ Worker  │
+              └────────┘ └────────┘ └─────────┘
 ```
 
-#### List Webhooks
-```bash
-curl http://localhost:8081/api/webhooks
+### Project Structure
+
+```
+machineauth/
+├── cmd/server/main.go          # Server entry point
+├── internal/
+│   ├── config/config.go        # Environment configuration
+│   ├── db/db.go                # Database layer (Postgres + JSON)
+│   ├── handlers/               # HTTP request handlers
+│   │   ├── agents.go           # Agent CRUD + self-service
+│   │   ├── auth.go             # OAuth2 token endpoints
+│   │   └── webhook.go          # Webhook management
+│   ├── middleware/              # Logging, CORS
+│   ├── models/models.go        # All data types and DTOs
+│   ├── services/               # Business logic
+│   │   ├── agent.go            # Agent operations
+│   │   ├── audit.go            # Audit logging + webhook triggers
+│   │   ├── token.go            # JWT creation/validation
+│   │   ├── webhook.go          # Webhook CRUD
+│   │   └── webhook_worker.go   # Async delivery processing
+│   └── utils/crypto.go         # Cryptographic helpers
+├── web/                        # React admin dashboard
+│   ├── src/
+│   │   ├── pages/              # Dashboard, Agents, Tokens, Webhooks, etc.
+│   │   ├── components/         # Layout, Sidebar
+│   │   ├── services/           # API client (axios)
+│   │   └── types/              # TypeScript interfaces
+│   └── vite.config.ts          # Vite + proxy config
+├── sdk/
+│   ├── typescript/             # @machineauth/sdk (npm)
+│   └── python/                 # machineauth (pip)
+├── docker/                     # Dockerfiles
+├── deploy/                     # Deployment scripts
+└── docker-compose.yml          # Full-stack compose
 ```
 
-#### Test Webhook
-```bash
-curl -X POST http://localhost:8081/api/webhooks/WEBHOOK_ID/test \
-  -H "Content-Type: application/json" \
-  -d '{"event": "webhook.test"}'
-```
-
-#### View Delivery History
-```bash
-curl http://localhost:8081/api/webhooks/WEBHOOK_ID/deliveries
-```
-
-#### Available Events
-```bash
-curl http://localhost:8081/api/webhook-events
-```
-
-### Access Protected Endpoint
-```bash
-curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  http://localhost:8081/api/secret
-```
+---
 
 ## Security
 
 ### Best Practices
 
-- ✅ Use HTTPS in production (reverse proxy)
-- ✅ Rotate credentials regularly
-- ✅ Set appropriate token expiry
-- ✅ Restrict CORS origins
-- ✅ Monitor `/metrics` endpoint
+- **Use HTTPS** — Always run behind a TLS-terminating reverse proxy in production
+- **Rotate credentials** — Use the rotation API regularly; old secrets are invalidated immediately
+- **Short token expiry** — Default 1 hour; reduce to 15-30 min for sensitive workloads
+- **Restrict CORS** — Set `ALLOWED_ORIGINS` to your specific domains
+- **Change admin password** — Default is `changeme`; set `ADMIN_PASSWORD` before deploying
+- **Monitor metrics** — Watch `/metrics` for token issuance anomalies
+- **Use Postgres in prod** — JSON file storage is for development only
 
 ### Reporting Vulnerabilities
 
-Please email security concerns directly instead of opening public issues.
+Please email security concerns directly rather than opening public issues. See [SECURITY.md](SECURITY.md).
 
-See [SECURITY.md](SECURITY.md) for details.
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| **Backend** | Go 1.21, `net/http`, `golang-jwt/jwt/v5` |
+| **Frontend** | React 18, TypeScript 5.3, Vite 5, Tailwind CSS 3.4 |
+| **Database** | PostgreSQL 15 (prod) / JSON file (dev) |
+| **Auth** | OAuth 2.0 Client Credentials, RS256 JWT |
+| **Icons** | Lucide React |
+| **Toasts** | Sonner |
+| **HTTP Client** | Axios |
 
 ---
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome!
 
-1. Fork the repo
-2. Create a feature branch
-3. Make changes and test
-4. Submit a Pull Request
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing`)
+3. Make your changes and add tests
+4. Run `go test -v ./...` and `cd web && npm run build`
+5. Commit (`git commit -m 'feat: add amazing feature'`)
+6. Push (`git push origin feature/amazing`)
+7. Open a Pull Request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 ## Links
 
-- [Live Demo](https://auth.writesomething.fun)
-- [Report Issues](https://github.com/mandarwagh9/MachineAuth/issues)
+- **Live Demo:** [https://auth.writesomething.fun](https://auth.writesomething.fun)
+- **Issues:** [GitHub Issues](https://github.com/mandarwagh9/MachineAuth/issues)
+- **SDK Docs:** [sdk/README.md](sdk/README.md)
 
 ---
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mandarwagh9/MachineAuth&type=date&legend=top-left)](https://www.star-history.com/#mandarwagh9/MachineAuth&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=mandarwagh9/MachineAuth&type=Date)](https://star-history.com/#mandarwagh9/MachineAuth&Date)
 
 ---
 
