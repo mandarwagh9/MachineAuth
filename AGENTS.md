@@ -15,55 +15,31 @@ MachineAuth is a self-hosted AI Agent Authentication SaaS platform providing OAu
 ### Backend (Go)
 
 ```bash
-# Install dependencies
-go mod download
-
-# Build server
-go build -o bin/server ./cmd/server
-
-# Run server
-go run ./cmd/server
-
-# Run all tests
-go test -v ./...
-
-# Run single test (when tests exist)
-go test -v -run TestFunctionName ./internal/services/...
-
-# Run tests with coverage
-go test -v -coverprofile=coverage.out ./...
-
-# Lint (requires golangci-lint)
-golangci-lint run
-
-# Format
-go fmt ./... && go vet ./...
+go mod download                    # Install dependencies
+go build -o bin/server ./cmd/server # Build server
+go run ./cmd/server                 # Run server
+go test -v ./...                    # Run all tests
+go test -v -run TestName ./path/... # Run single test
+go test -v -coverprofile=cov.out ./... # Tests with coverage
+golangci-lint run                  # Lint (requires golangci-lint)
+go fmt ./... && go vet ./...       # Format
 ```
 
 ### Frontend (React)
 
 ```bash
-# Install dependencies
-cd web && npm install
-
-# Development (port 3000)
-cd web && npm run dev
-
-# Production build
-cd web && npm run build
-
-# Lint
-cd web && npm run lint
-
-# TypeScript type check
-cd web && npx tsc --noEmit
+cd web && npm install              # Install dependencies
+cd web && npm run dev              # Development (port 3000)
+cd web && npm run build            # Production build
+cd web && npm run lint             # Lint
+cd web && npx tsc --noEmit         # TypeScript check
 ```
 
 ## Code Style Guidelines
 
 ### Go (Backend)
 
-**Imports**: stdlib → external → internal. Use `goimports`.
+**Imports**: stdlib → external → internal (use `goimports`)
 
 ```go
 import (
@@ -78,7 +54,7 @@ import (
 )
 ```
 
-**Naming**: Packages lowercase, exported PascalCase, unexported camelCase. Constants PascalCase.
+**Naming**: Packages lowercase, exported PascalCase, unexported camelCase, constants PascalCase.
 
 **Error Handling**: Wrap with context using `fmt.Errorf` with `%w`:
 ```go
@@ -87,13 +63,13 @@ if err != nil {
 }
 ```
 
-**HTTP Handlers**: Return structured JSON responses, use proper HTTP status codes:
+**HTTP Handlers**: Return structured JSON, proper status codes:
 ```go
 w.Header().Set("Content-Type", "application/json")
 json.NewEncoder(w).Encode(models.AgentResponse{Agent: *agent})
 ```
 
-**Types**: Use precise types, pointers for optional values. Embed `uuid.UUID` directly:
+**Types**: Use precise types, pointers for optional values, embed `uuid.UUID` directly:
 ```go
 type Agent struct {
 	ID        uuid.UUID  `json:"id"`
@@ -102,17 +78,14 @@ type Agent struct {
 }
 ```
 
-**Logging**: Use `log.Printf` for errors with context:
-```go
-log.Printf("failed to create agent: %v", err)
-```
+**Logging**: Use `log.Printf` with context.
 
 ### React/TypeScript (Frontend)
 
 **Imports**: Use absolute imports with `@/` alias.
 
 ```typescript
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AgentService } from '@/services/api';
 import { Agent } from '@/types';
 ```
@@ -120,16 +93,6 @@ import { Agent } from '@/types';
 **Naming**: Components PascalCase, functions camelCase, files kebab-case.
 
 **Types**: Define explicit types, avoid `any`.
-```typescript
-interface Agent {
-  id: string;
-  name: string;
-  client_id: string;
-  scopes: string[];
-}
-```
-
-**Error Handling**: Try/catch with user-friendly messages.
 
 **Styling**: Tailwind CSS with HSL color variables.
 
@@ -147,13 +110,12 @@ machineauth/
 │   ├── services/           # Business logic
 │   └── utils/              # Utilities
 ├── web/                    # React frontend
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   ├── types/          # TypeScript types
-│   │   └── App.tsx
-│   └── package.json
+│   └── src/
+│       ├── components/     # React components
+│       ├── pages/          # Page components
+│       ├── services/       # API services
+│       ├── types/          # TypeScript types
+│       └── App.tsx
 └── docker-compose.yml
 ```
 
@@ -191,23 +153,14 @@ ALLOWED_ORIGINS=http://localhost:3000
 
 - Frontend proxies `/api`, `/oauth`, `/.well-known`, `/health`, `/metrics` to `localhost:8081`
 - Use `@/` for absolute imports (maps to `./src/`)
-- API baseURL via `VITE_API_URL` env var
-- Admin credentials: `admin` / `admin` (change in web/src/App.tsx before deployment)
-- Alternate Go entry point: `go run server-main.go` (runs on port 8081)
+- Admin credentials: `admin` / `admin` (change before deployment)
+- Alternate Go entry: `go run server-main.go` (port 8081)
 
 ## Key Conventions
 
-### Backend Layer Architecture
-- **Handlers** (`internal/handlers/`): HTTP request/response handling, validation
-- **Services** (`internal/services/`): Business logic, orchestration
-- **Models** (`internal/models/`): API request/response types, JSON serialization
-- **DB** (`internal/db/`): Database operations, storage abstraction
-
-### Frontend State Management
-- Use React hooks (`useState`, `useEffect`) for local state
-- Use `react-hook-form` for form handling
-- Use `sonner` for toast notifications
-
-### JSON Field Naming
-- Backend uses `snake_case` for JSON (e.g., `client_id`, `expires_at`)
-- Frontend can use either convention; match API response
+- **Handlers**: HTTP request/response handling, validation
+- **Services**: Business logic, orchestration
+- **Models**: API request/response types, JSON serialization
+- **DB**: Database operations, storage abstraction
+- Backend uses `snake_case` JSON (e.g., `client_id`, `expires_at`)
+- Frontend: React hooks for state, `react-hook-form` for forms, `sonner` for toasts
