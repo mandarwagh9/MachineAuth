@@ -87,12 +87,12 @@ $ curl -H "Authorization: Bearer eyJ..." http://localhost:8081/api/verify
 # Clone and run
 git clone https://github.com/mandarwagh9/MachineAuth.git
 cd MachineAuth
-go run server-main.go
+go run ./cmd/server
 ```
 
-Server runs on `http://localhost:8081`
+Server runs on `http://localhost:8080`
 
-That's it! No database, no dependencies.
+That's it! No database, no dependencies. Uses JSON file storage by default.
 
 ---
 
@@ -175,6 +175,7 @@ Download from [Releases](https://github.com/mandarwagh9/MachineAuth/releases) (c
 | 📊 Usage Tracking | Track tokens, refreshes, activity per agent |
 | 📈 Per-Agent Metrics | Agents can view their own usage statistics |
 | 📊 Metrics | Track tokens issued, revoked, etc. |
+| 🏢 Multi-Tenant | Organizations and Teams support |
 | 🌐 CORS | Configurable cross-origin settings |
 | 📁 Zero-DB | JSON file storage - no external dependencies |
 
@@ -228,6 +229,61 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
   http://localhost:8081/api/verify
 ```
 
+### 4. Introspect Token
+
+```bash
+curl -X POST http://localhost:8081/oauth/introspect \
+  -d "token=YOUR_ACCESS_TOKEN"
+```
+
+**Response:**
+```json
+{
+  "active": true,
+  "scope": "read write",
+  "client_id": "abc-123",
+  "exp": 1234567890,
+  "iat": 1234567890,
+  "token_type": "Bearer"
+}
+```
+
+### 5. Refresh Token
+
+```bash
+curl -X POST http://localhost:8081/oauth/refresh \
+  -d "refresh_token=YOUR_REFRESH_TOKEN" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET"
+```
+
+### 6. Revoke Token
+
+```bash
+curl -X POST http://localhost:8081/oauth/revoke \
+  -d "token=YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Multi-Tenant (Organizations & Teams)
+
+### Create an Organization
+
+```bash
+curl -X POST http://localhost:8081/api/organizations \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Acme Corp", "slug": "acme", "owner_email": "admin@acme.com"}'
+```
+
+### Create a Team
+
+```bash
+curl -X POST http://localhost:8081/api/organizations/{org_id}/teams \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Engineering", "description": "Engineering team"}'
+```
+
 ---
 
 ## API Reference
@@ -254,6 +310,23 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 | `/api/agents/me/delete` | DELETE | Delete own account | `curl -X DELETE -H "Authorization: Bearer ..." localhost:8081/api/agents/me/delete` |
 | `/api/verify` | GET | Verify token | `curl -H "Authorization: Bearer ..." localhost:8081/api/verify` |
 | `/metrics` | GET | Server metrics | `curl localhost:8081/metrics` |
+
+### Organizations API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/organizations` | GET | List organizations |
+| `/api/organizations` | POST | Create organization |
+| `/api/organizations/{id}` | GET | Get organization |
+| `/api/organizations/{id}` | PUT | Update organization |
+| `/api/organizations/{id}` | DELETE | Delete organization |
+
+### Teams API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/organizations/{id}/teams` | GET | List teams |
+| `/api/organizations/{id}/teams` | POST | Create team |
 
 ### Agent Self-Service API
 
