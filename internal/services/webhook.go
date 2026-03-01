@@ -15,8 +15,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"agentauth/internal/db"
-	"agentauth/internal/models"
+	"machineauth/internal/db"
+	"machineauth/internal/models"
 )
 
 // Webhook event type constants

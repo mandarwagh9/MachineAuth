@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"agentauth/internal/db"
-	"agentauth/internal/models"
+	"machineauth/internal/db"
+	"machineauth/internal/models"
 )
 
 func setupTestDB(t *testing.T) *db.DB {

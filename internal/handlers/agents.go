@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"agentauth/internal/models"
-	"agentauth/internal/services"
+	"machineauth/internal/models"
+	"machineauth/internal/services"
 )
 
 type AgentsHandler struct {
@@ -44,6 +44,44 @@ func (h *AgentsHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(models.AgentsListResponse{Agents: agents})
+}
+
+func (h *AgentsHandler) CreateInOrganization(w http.ResponseWriter, r *http.Request, orgID string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	var req models.CreateAgentRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	req.OrganizationID = orgID
+
+	agent, err := h.agentService.Create(req)
+	if err != nil {
+		log.Printf("failed to create agent: %v", err)
+		http.Error(w, "failed to create agent", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(agent)
 }
 
 func (h *AgentsHandler) HandleAgent(w http.ResponseWriter, r *http.Request) {

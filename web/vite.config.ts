@@ -13,19 +13,23 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
       '/oauth': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
       '/.well-known': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+      },
+      '/metrics': {
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
     },

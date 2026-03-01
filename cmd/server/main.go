@@ -2,19 +2,21 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
-	"agentauth/internal/config"
-	"agentauth/internal/db"
-	"agentauth/internal/handlers"
-	"agentauth/internal/middleware"
-	"agentauth/internal/services"
+	"machineauth/internal/config"
+	"machineauth/internal/db"
+	"machineauth/internal/handlers"
+	"machineauth/internal/middleware"
+	"machineauth/internal/services"
 )
 
 func main() {
@@ -33,13 +35,16 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	tokenService, err := services.NewTokenService(cfg)
+	tokenService, err := services.NewTokenService(cfg, database)
 	if err != nil {
 		log.Fatalf("failed to create token service: %v", err)
 	}
 
 	agentService := services.NewAgentService(database)
 	auditService := services.NewAuditService(database)
+	orgService := services.NewOrganizationService(database)
+	teamService := services.NewTeamService(database)
+	apiKeyService := services.NewAPIKeyService(database)
 	webhookService := services.NewWebhookService(database)
 
 	// Wire up webhook triggering in audit service
@@ -52,6 +57,9 @@ func main() {
 
 	authHandler := handlers.NewAuthHandler(agentService, tokenService)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
+	agentSelfHandler := handlers.NewAgentSelfHandler(agentService)
+	orgHandler := handlers.NewOrganizationHandler(orgService, teamService)
+	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
 	webhookHandler := handlers.NewWebhookHandler(webhookService, auditService)
 
 	mux := http.NewServeMux()
@@ -62,7 +70,31 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"endpoints":"/oauth/token, /oauth/introspect, /oauth/revoke, /oauth/refresh, /api/agents, /.well-known/jwks.json","service":"MachineAuth","status":"running","version":"1.0.0"}`))
+	})
+
+	mux.HandleFunc("/health/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		agentCount, _ := agentService.Count()
+		w.Write([]byte(fmt.Sprintf(`{"status":"ok","timestamp":"%s","agents_count":%d}`, time.Now().UTC().Format(time.RFC3339), agentCount)))
+	})
+
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		stats, _ := agentService.GetStats()
+		tokensRefreshed, tokensRevoked := tokenService.GetMetrics()
+		w.Write([]byte(fmt.Sprintf(`{"requests":%d,"tokens_issued":%d,"tokens_refreshed":%d,"tokens_revoked":%d,"active_tokens":%d,"total_agents":%d}`, stats.TotalRequests, stats.TokensIssued, tokensRefreshed, tokensRevoked, stats.ActiveTokens, stats.TotalAgents)))
+	})
+
 	mux.HandleFunc("/oauth/token", authHandler.Token)
+	mux.HandleFunc("/oauth/introspect", authHandler.Introspect)
+	mux.HandleFunc("/oauth/revoke", authHandler.Revoke)
+	mux.HandleFunc("/oauth/refresh", authHandler.Refresh)
 
 	mux.HandleFunc("/.well-known/jwks.json", tokenService.JWKS)
 
@@ -82,6 +114,128 @@ func main() {
 	mux.HandleFunc("/api/webhooks", webhookHandler.ListAndCreate)
 	mux.HandleFunc("/api/webhooks/", webhookHandler.HandleWebhook)
 	mux.HandleFunc("/api/webhook-events", webhookHandler.HandleEvents)
+
+	mux.HandleFunc("/api/organizations", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			orgHandler.ListOrganizations(w, r)
+		case http.MethodPost:
+			orgHandler.CreateOrganization(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/organizations/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		if strings.HasSuffix(path, "/api-keys") || strings.HasSuffix(path, "/api-keys/") {
+			orgID := strings.TrimPrefix(path, "/api/organizations/")
+			orgID = strings.TrimSuffix(orgID, "/api-keys")
+			orgID = strings.TrimSuffix(orgID, "/")
+			if orgID == "" {
+				http.Error(w, "organization ID required", http.StatusBadRequest)
+				return
+			}
+			switch r.Method {
+			case http.MethodGet:
+				apiKeyHandler.ListAPIKeys(w, r)
+			case http.MethodPost:
+				apiKeyHandler.CreateAPIKey(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if strings.Contains(path, "/api-keys/") {
+			switch r.Method {
+			case http.MethodDelete:
+				apiKeyHandler.DeleteAPIKey(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if strings.HasSuffix(path, "/teams") || strings.HasSuffix(path, "/teams/") {
+			orgID := strings.TrimPrefix(path, "/api/organizations/")
+			orgID = strings.TrimSuffix(orgID, "/teams")
+			orgID = strings.TrimSuffix(orgID, "/")
+			if orgID == "" {
+				http.Error(w, "organization ID required", http.StatusBadRequest)
+				return
+			}
+			switch r.Method {
+			case http.MethodGet:
+				orgHandler.ListTeams(w, r)
+			case http.MethodPost:
+				orgHandler.CreateTeam(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if strings.HasSuffix(path, "/agents") || strings.HasSuffix(path, "/agents/") {
+			orgID := strings.TrimPrefix(path, "/api/organizations/")
+			orgID = strings.TrimSuffix(orgID, "/agents")
+			orgID = strings.TrimSuffix(orgID, "/")
+			if orgID == "" {
+				http.Error(w, "organization ID required", http.StatusBadRequest)
+				return
+			}
+			switch r.Method {
+			case http.MethodGet:
+				agents, err := agentService.ListByOrganization(orgID)
+				if err != nil {
+					http.Error(w, "failed to list agents", http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{"agents": agents})
+			case http.MethodPost:
+				agentsHandler.CreateInOrganization(w, r, orgID)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else {
+			switch r.Method {
+			case http.MethodGet:
+				orgHandler.GetOrganization(w, r)
+			case http.MethodPut, http.MethodPatch:
+				orgHandler.UpdateOrganization(w, r)
+			case http.MethodDelete:
+				orgHandler.DeleteOrganization(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		}
+	})
+
+	jwtAuth := middleware.JWTAuth(tokenService)
+
+	mux.Handle("/api/agents/me", jwtAuth(http.HandlerFunc(agentSelfHandler.GetMe)))
+	mux.Handle("/api/agents/me/usage", jwtAuth(http.HandlerFunc(agentSelfHandler.GetUsage)))
+	mux.Handle("/api/agents/me/rotate", jwtAuth(http.HandlerFunc(agentSelfHandler.RotateCredentials)))
+	mux.Handle("/api/agents/me/deactivate", jwtAuth(http.HandlerFunc(agentSelfHandler.Deactivate)))
+	mux.Handle("/api/agents/me/reactivate", jwtAuth(http.HandlerFunc(agentSelfHandler.Reactivate)))
+	mux.Handle("/api/agents/me/delete", jwtAuth(http.HandlerFunc(agentSelfHandler.Delete)))
+
+	mux.Handle("/api/verify", jwtAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agentID, ok := middleware.GetAgentIDFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		agent, err := agentService.GetByID(agentID)
+		if err != nil {
+			http.Error(w, "agent not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"valid":       true,
+			"agent_id":    agent.ID,
+			"client_id":   agent.ClientID,
+			"name":        agent.Name,
+			"scopes":      agent.Scopes,
+			"is_active":   agent.IsActive,
+			"token_count": agent.TokenCount,
+		})
+	})))
+
 
 	loggedMux := middleware.Logging(mux)
 	corsMux := middleware.CORS(cfg.AllowedOrigins, loggedMux)

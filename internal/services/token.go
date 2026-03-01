@@ -13,9 +13,12 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
-	"agentauth/internal/config"
-	"agentauth/internal/models"
+	"machineauth/internal/config"
+	"machineauth/internal/db"
+	"machineauth/internal/models"
 )
 
 type TokenService struct {
@@ -24,9 +27,10 @@ type TokenService struct {
 	keyID           string
 	mu              sync.RWMutex
 	tokenExpirySecs int
+	db              *db.DB
 }
 
-func NewTokenService(cfg *config.Config) (*TokenService, error) {
+func NewTokenService(cfg *config.Config, database *db.DB) (*TokenService, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA key: %w", err)
@@ -37,6 +41,7 @@ func NewTokenService(cfg *config.Config) (*TokenService, error) {
 		privateKey:      privateKey,
 		keyID:           cfg.JWTKeyID,
 		tokenExpirySecs: cfg.JWTExpirySeconds,
+		db:              database,
 	}, nil
 }
 
@@ -49,13 +54,16 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"iss":   "https://auth.example.com",
-		"sub":   agent.ClientID,
-		"aud":   "agentauth-api",
-		"iat":   now.Unix(),
-		"exp":   now.Add(s.cfg.GetTokenExpiry()).Unix(),
-		"scope": scopes,
-		"jti":   generateTokenID(),
+		"iss":      "https://auth.example.com",
+		"sub":      agent.ClientID,
+		"agent_id": agent.ID.String(),
+		"org_id":   agent.OrganizationID,
+		"team_id":  agent.TeamID.String(),
+		"aud":      "machineauth-api",
+		"iat":      now.Unix(),
+		"exp":      now.Add(s.cfg.GetTokenExpiry()).Unix(),
+		"scope":    scopes,
+		"jti":      generateTokenID(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -111,6 +119,16 @@ func (s *TokenService) ValidateToken(tokenString string) (jwt.MapClaims, error) 
 	}
 
 	return nil, fmt.Errorf("invalid token")
+}
+
+func (s *TokenService) GetAgentIDFromClaims(claims jwt.MapClaims) (string, bool) {
+	agentID, ok := claims["agent_id"].(string)
+	return agentID, ok
+}
+
+func (s *TokenService) GetClientIDFromClaims(claims jwt.MapClaims) (string, bool) {
+	clientID, ok := claims["sub"].(string)
+	return clientID, ok
 }
 
 func (s *TokenService) GetPublicKey() *rsa.PublicKey {
@@ -193,18 +211,19 @@ func generateTokenID() string {
 	return fmt.Sprintf("%x", b)
 }
 
-var jwtSecret = []byte("agentauth-jwt-secret-key-for-development-only")
+var jwtSecret = []byte("machineauth-jwt-secret-key-for-development-only")
 
 func GenerateHMACToken(agent *models.Agent, expirySeconds int) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"iss":   "agentauth",
-		"sub":   agent.ClientID,
-		"aud":   "agentauth-api",
-		"iat":   now.Unix(),
-		"exp":   now.Add(time.Duration(expirySeconds) * time.Second).Unix(),
-		"scope": agent.Scopes,
-		"jti":   generateTokenID(),
+		"iss":      "machineauth",
+		"sub":      agent.ClientID,
+		"agent_id": agent.ID.String(),
+		"aud":      "machineauth-api",
+		"iat":      now.Unix(),
+		"exp":      now.Add(time.Duration(expirySeconds) * time.Second).Unix(),
+		"scope":    agent.Scopes,
+		"jti":      generateTokenID(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -256,4 +275,144 @@ func HashSHA256(data []byte) string {
 	hash := crypto.SHA256.New()
 	hash.Write(data)
 	return base64.URLEncoding.EncodeToString(hash.Sum(nil))
+}
+
+func (s *TokenService) GenerateRefreshToken(agentID string) (string, error) {
+	refreshTokenID := uuid.New().String()
+	refreshHash, err := bcrypt.GenerateFromPassword([]byte(refreshTokenID), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash refresh token: %w", err)
+	}
+
+	expiry := time.Now().Add(7 * 24 * time.Hour)
+	rt := db.RefreshToken{
+		ID:        refreshTokenID,
+		AgentID:   agentID,
+		TokenHash: string(refreshHash),
+		ExpiresAt: expiry,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.db.CreateRefreshToken(rt); err != nil {
+		return "", fmt.Errorf("failed to store refresh token: %w", err)
+	}
+
+	return refreshTokenID, nil
+}
+
+func (s *TokenService) ValidateRefreshToken(tokenString string) (*models.Agent, error) {
+	rt, err := s.db.GetRefreshToken(tokenString)
+	if err != nil {
+		return nil, fmt.Errorf("refresh token not found")
+	}
+
+	if rt.RevokedAt != nil {
+		return nil, fmt.Errorf("refresh token revoked")
+	}
+
+	if time.Now().After(rt.ExpiresAt) {
+		return nil, fmt.Errorf("refresh token expired")
+	}
+
+	agent, err := s.db.GetAgentByID(rt.AgentID)
+	if err != nil {
+		return nil, fmt.Errorf("agent not found")
+	}
+
+	if !agent.IsActive {
+		return nil, fmt.Errorf("agent is inactive")
+	}
+
+	return &models.Agent{
+		ID:        uuid.MustParse(agent.ID),
+		Name:      agent.Name,
+		ClientID:  agent.ClientID,
+		Scopes:    agent.Scopes,
+		IsActive:  agent.IsActive,
+		CreatedAt: agent.CreatedAt,
+		UpdatedAt: agent.UpdatedAt,
+	}, nil
+}
+
+func (s *TokenService) RevokeRefreshToken(tokenString string) error {
+	err := s.db.RevokeRefreshToken(tokenString)
+	if err != nil {
+		return err
+	}
+	return s.db.IncrementTokensRefreshed()
+}
+
+func (s *TokenService) RecordTokenRefresh() error {
+	return s.db.IncrementTokensRefreshed()
+}
+
+func (s *TokenService) IntrospectToken(tokenString string) (*models.IntrospectResponse, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return &s.privateKey.PublicKey, nil
+	})
+
+	if err != nil || !token.Valid {
+		return &models.IntrospectResponse{Active: false}, nil
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return &models.IntrospectResponse{Active: false}, nil
+	}
+
+	jti, _ := claims["jti"].(string)
+	if jti != "" && s.db.IsTokenRevoked(jti) {
+		return &models.IntrospectResponse{Active: false, Revoked: true, Reason: "revoked"}, nil
+	}
+
+	exp, _ := claims["exp"].(float64)
+	if time.Now().Unix() > int64(exp) {
+		return &models.IntrospectResponse{Active: false, Reason: "expired"}, nil
+	}
+
+	scope, _ := claims["scope"].([]interface{})
+	var scopeStr string
+	if len(scope) > 0 {
+		scopeStr = joinScopes(toStringSlice(scope))
+	}
+
+	sub, _ := claims["sub"].(string)
+	iat, _ := claims["iat"].(float64)
+
+	return &models.IntrospectResponse{
+		Active:    true,
+		Scope:     scopeStr,
+		ClientID:  sub,
+		Exp:       int64(exp),
+		Iat:       int64(iat),
+		TokenType: "Bearer",
+	}, nil
+}
+
+func (s *TokenService) RevokeAccessToken(jti string) error {
+	expiry := time.Now().Add(24 * time.Hour)
+	rt := db.RevokedToken{
+		JTI:     jti,
+		Expires: expiry,
+	}
+	if err := s.db.AddRevokedToken(rt); err != nil {
+		return err
+	}
+	return s.db.IncrementTokensRevoked()
+}
+
+func (s *TokenService) GetMetrics() (int64, int64) {
+	metrics := s.db.GetMetrics()
+	return metrics.TokensRefreshed, metrics.TokensRevoked
+}
+
+func toStringSlice(ifaces []interface{}) []string {
+	result := make([]string, len(ifaces))
+	for i, v := range ifaces {
+		result[i] = fmt.Sprintf("%v", v)
+	}
+	return result
 }
