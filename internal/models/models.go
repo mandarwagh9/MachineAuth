@@ -160,6 +160,33 @@ type TeamsResponse struct {
 	Teams []Team `json:"teams"`
 }
 
+type APIKey struct {
+	ID             string     `json:"id"`
+	OrganizationID string     `json:"organization_id"`
+	TeamID         *uuid.UUID `json:"team_id,omitempty"`
+	Name           string     `json:"name"`
+	Prefix         string     `json:"prefix"`
+	LastUsedAt     *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
+	IsActive       bool       `json:"is_active"`
+	CreatedAt      time.Time  `json:"created_at"`
+}
+
+type CreateAPIKeyRequest struct {
+	Name      string     `json:"name"`
+	TeamID    *uuid.UUID `json:"team_id,omitempty"`
+	ExpiresIn *int       `json:"expires_in,omitempty"`
+}
+
+type CreateAPIKeyResponse struct {
+	APIKey APIKey `json:"api_key"`
+	Key    string `json:"key"`
+}
+
+type APIKeysResponse struct {
+	APIKeys []APIKey `json:"api_keys"`
+}
+
 type IntrospectResponse struct {
 	Active    bool   `json:"active"`
 	Scope     string `json:"scope,omitempty"`

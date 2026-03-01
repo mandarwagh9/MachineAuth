@@ -266,6 +266,72 @@ curl -X POST http://localhost:8081/oauth/revoke \
 
 ---
 
+## API Keys
+
+MachineAuth supports API keys for simpler machine-to-machine authentication.
+
+### Create an API Key
+
+```bash
+curl -X POST http://localhost:8081/api/organizations/{org_id}/api-keys \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production-key", "expires_in": 86400}'
+```
+
+**Response:**
+```json
+{
+  "api_key": {
+    "id": "uuid",
+    "organization_id": "org-uuid",
+    "name": "production-key",
+    "prefix": "sk_1cF4CG1RE",
+    "is_active": true,
+    "created_at": "2026-03-01T12:00:00Z"
+  },
+  "key": "sk_1cF4CG1REhHtXrrxWGcI5jlTX92zeWRyw7goSmopwAs"
+}
+```
+
+> ⚠️ Save the `key` - it will not be shown again!
+
+### List API Keys
+
+```bash
+curl http://localhost:8081/api/organizations/{org_id}/api-keys
+```
+
+### Revoke API Key
+
+```bash
+curl -X DELETE http://localhost:8081/api/organizations/{org_id}/api-keys/{key_id}
+```
+
+### Using API Keys
+
+Use the API key in the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer sk_1cF4CG1REhHtXrrxWGcI5jlTX92zeWRyw7goSmopwAs" \
+  http://localhost:8081/api/verify
+```
+
+### API Key Model
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier |
+| `organization_id` | string | Organization UUID |
+| `team_id` | string (optional) | Team UUID |
+| `name` | string | Key name |
+| `prefix` | string | First 12 chars (for identification) |
+| `is_active` | boolean | Whether key is active |
+| `expires_at` | timestamp (optional) | Expiration time |
+| `last_used_at` | timestamp (optional) | Last usage time |
+| `created_at` | timestamp | Creation time |
+
+---
+
 ## Multi-Tenant (Organizations & Teams)
 
 ### Create an Organization
@@ -361,6 +427,14 @@ Tokens include `org_id` and `team_id` for multi-tenant access control:
 |----------|--------|-------------|
 | `/api/organizations/{id}/teams` | GET | List teams |
 | `/api/organizations/{id}/teams` | POST | Create team |
+
+### API Keys API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/organizations/{id}/api-keys` | GET | List API keys |
+| `/api/organizations/{id}/api-keys` | POST | Create API key |
+| `/api/organizations/{id}/api-keys/{key_id}` | DELETE | Revoke API key |
 
 ### Agent Self-Service API
 

@@ -44,11 +44,13 @@ func main() {
 	auditService := services.NewAuditService(database)
 	orgService := services.NewOrganizationService(database)
 	teamService := services.NewTeamService(database)
+	apiKeyService := services.NewAPIKeyService(database)
 
 	authHandler := handlers.NewAuthHandler(agentService, tokenService)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
 	agentSelfHandler := handlers.NewAgentSelfHandler(agentService)
 	orgHandler := handlers.NewOrganizationHandler(orgService, teamService)
+	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
 
 	mux := http.NewServeMux()
 
@@ -86,6 +88,18 @@ func main() {
 
 	mux.HandleFunc("/.well-known/jwks.json", tokenService.JWKS)
 
+	mux.HandleFunc("/api/agents", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			agentsHandler.List(w, r)
+		case http.MethodPost:
+			agentsHandler.Create(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/agents/", agentsHandler.HandleAgent)
+
 	mux.HandleFunc("/api/organizations", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -100,7 +114,37 @@ func main() {
 	mux.HandleFunc("/api/organizations/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
-		if strings.Contains(path, "/teams") {
+		if strings.HasSuffix(path, "/api-keys") || strings.HasSuffix(path, "/api-keys/") {
+			orgID := strings.TrimPrefix(path, "/api/organizations/")
+			orgID = strings.TrimSuffix(orgID, "/api-keys")
+			orgID = strings.TrimSuffix(orgID, "/")
+			if orgID == "" {
+				http.Error(w, "organization ID required", http.StatusBadRequest)
+				return
+			}
+			switch r.Method {
+			case http.MethodGet:
+				apiKeyHandler.ListAPIKeys(w, r)
+			case http.MethodPost:
+				apiKeyHandler.CreateAPIKey(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if strings.Contains(path, "/api-keys/") {
+			switch r.Method {
+			case http.MethodDelete:
+				apiKeyHandler.DeleteAPIKey(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if strings.HasSuffix(path, "/teams") || strings.HasSuffix(path, "/teams/") {
+			orgID := strings.TrimPrefix(path, "/api/organizations/")
+			orgID = strings.TrimSuffix(orgID, "/teams")
+			orgID = strings.TrimSuffix(orgID, "/")
+			if orgID == "" {
+				http.Error(w, "organization ID required", http.StatusBadRequest)
+				return
+			}
 			switch r.Method {
 			case http.MethodGet:
 				orgHandler.ListTeams(w, r)
@@ -109,9 +153,10 @@ func main() {
 			default:
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
-		} else if strings.Contains(path, "/agents") {
+		} else if strings.HasSuffix(path, "/agents") || strings.HasSuffix(path, "/agents/") {
 			orgID := strings.TrimPrefix(path, "/api/organizations/")
 			orgID = strings.TrimSuffix(orgID, "/agents")
+			orgID = strings.TrimSuffix(orgID, "/")
 			if orgID == "" {
 				http.Error(w, "organization ID required", http.StatusBadRequest)
 				return
@@ -143,18 +188,6 @@ func main() {
 			}
 		}
 	})
-
-	mux.HandleFunc("/api/agents", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			agentsHandler.List(w, r)
-		case http.MethodPost:
-			agentsHandler.Create(w, r)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/api/agents/", agentsHandler.HandleAgent)
 
 	jwtAuth := middleware.JWTAuth(tokenService)
 

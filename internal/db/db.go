@@ -19,6 +19,7 @@ type JSONDB struct {
 	Metrics       Metrics        `json:"metrics"`
 	Organizations []Organization `json:"organizations"`
 	Teams         []Team         `json:"teams"`
+	APIKeys       []APIKey       `json:"api_keys"`
 }
 
 type Metrics struct {
@@ -46,6 +47,19 @@ type Team struct {
 	Description    string    `json:"description"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type APIKey struct {
+	ID             string     `json:"id"`
+	OrganizationID string     `json:"organization_id"`
+	TeamID         *string    `json:"team_id,omitempty"`
+	Name           string     `json:"name"`
+	KeyHash        string     `json:"key_hash"`
+	Prefix         string     `json:"prefix"`
+	LastUsedAt     *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
+	IsActive       bool       `json:"is_active"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 type Agent struct {
@@ -455,6 +469,78 @@ func (db *DB) DeleteTeam(id string) error {
 		}
 	}
 	return fmt.Errorf("team not found")
+}
+
+func (db *DB) CreateAPIKey(key APIKey) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.APIKeys = append(db.APIKeys, key)
+	return db.Save()
+}
+
+func (db *DB) GetAPIKeyByID(id string) (*APIKey, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.APIKeys {
+		if db.APIKeys[i].ID == id {
+			return &db.APIKeys[i], nil
+		}
+	}
+	return nil, fmt.Errorf("API key not found")
+}
+
+func (db *DB) GetAPIKeyByKeyHash(keyHash string) (*APIKey, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.APIKeys {
+		if db.APIKeys[i].KeyHash == keyHash && db.APIKeys[i].IsActive {
+			return &db.APIKeys[i], nil
+		}
+	}
+	return nil, fmt.Errorf("API key not found")
+}
+
+func (db *DB) ListAPIKeysByOrganization(orgID string) ([]APIKey, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var keys []APIKey
+	for i := range db.APIKeys {
+		if db.APIKeys[i].OrganizationID == orgID {
+			keys = append(keys, db.APIKeys[i])
+		}
+	}
+	return keys, nil
+}
+
+func (db *DB) UpdateAPIKey(id string, updateFn func(*APIKey) error) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.APIKeys {
+		if db.APIKeys[i].ID == id {
+			if err := updateFn(&db.APIKeys[i]); err != nil {
+				return err
+			}
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("API key not found")
+}
+
+func (db *DB) DeleteAPIKey(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.APIKeys {
+		if db.APIKeys[i].ID == id {
+			db.APIKeys = append(db.APIKeys[:i], db.APIKeys[i+1:]...)
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("API key not found")
 }
 
 func RunMigrations(db *DB) error {
