@@ -29,7 +29,7 @@ export function WebhookList() {
   const loadWebhooks = async () => {
     try {
       const data = await WebhookService.list()
-      setWebhooks(data)
+      setWebhooks(data || [])
     } catch {
       toast.error('Failed to load webhooks')
     } finally {

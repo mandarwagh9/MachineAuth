@@ -15,7 +15,7 @@ import type {
 export const WebhookService = {
   list: async (): Promise<WebhookConfig[]> => {
     const response = await api.get<WebhooksListResponse>('/webhooks')
-    return response.data.webhooks
+    return response.data.webhooks || []
   },
 
   get: async (id: string): Promise<WebhookConfig> => {
@@ -46,7 +46,7 @@ export const WebhookService = {
     const response = await api.get<WebhookDeliveriesListResponse>(
       `/webhooks/${webhookId}/deliveries`
     )
-    return response.data.deliveries
+    return response.data.deliveries || []
   },
 
   getEvents: async (): Promise<string[]> => {

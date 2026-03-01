@@ -62,7 +62,7 @@ export function WebhookDetail() {
   const loadDeliveries = async () => {
     try {
       const data = await WebhookService.getDeliveries(id!)
-      setDeliveries(data)
+      setDeliveries(data || [])
     } catch {
       toast.error('Failed to load deliveries')
     }

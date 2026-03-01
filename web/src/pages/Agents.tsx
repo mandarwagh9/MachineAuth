@@ -27,7 +27,7 @@ export function AgentsPage() {
   const fetchAgents = async () => {
     try {
       const data = await AgentService.list()
-      setAgents(data.agents)
+      setAgents(data.agents || [])
     } catch (error) {
       console.error('Failed to fetch agents:', error)
       toast.error('Failed to load agents')
