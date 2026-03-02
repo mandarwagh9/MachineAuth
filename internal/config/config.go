@@ -15,6 +15,7 @@ type Config struct {
 	JWTSigningAlgorithm string
 	JWTKeyID            string
 	JWTExpirySeconds    int
+	JWTIssuer           string
 	AllowedOrigins      string
 	RequireHTTPS        bool
 	AdminEmail          string
@@ -34,6 +35,7 @@ func Load() (*Config, error) {
 		JWTSigningAlgorithm: getEnv("JWT_SIGNING_ALGORITHM", "RS256"),
 		JWTKeyID:            getEnv("JWT_KEY_ID", "key-1"),
 		JWTExpirySeconds:    getEnvInt("JWT_ACCESS_TOKEN_EXPIRY", 3600),
+		JWTIssuer:           getEnv("JWT_ISSUER", "https://auth.machineauth.local"),
 		AllowedOrigins:      getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
 		RequireHTTPS:        getEnvBool("REQUIRE_HTTPS", false),
 		AdminEmail:          getEnv("ADMIN_EMAIL", "admin@example.com"),

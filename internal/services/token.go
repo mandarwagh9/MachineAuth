@@ -53,12 +53,16 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 	}
 
 	now := time.Now()
+	var teamIDStr string
+	if agent.TeamID != nil {
+		teamIDStr = agent.TeamID.String()
+	}
 	claims := jwt.MapClaims{
-		"iss":      "https://auth.example.com",
+		"iss":      s.cfg.JWTIssuer,
 		"sub":      agent.ClientID,
 		"agent_id": agent.ID.String(),
 		"org_id":   agent.OrganizationID,
-		"team_id":  agent.TeamID.String(),
+		"team_id":  teamIDStr,
 		"aud":      "machineauth-api",
 		"iat":      now.Unix(),
 		"exp":      now.Add(s.cfg.GetTokenExpiry()).Unix(),
@@ -211,9 +215,7 @@ func generateTokenID() string {
 	return fmt.Sprintf("%x", b)
 }
 
-var jwtSecret = []byte("machineauth-jwt-secret-key-for-development-only")
-
-func GenerateHMACToken(agent *models.Agent, expirySeconds int) (string, error) {
+func GenerateHMACToken(agent *models.Agent, expirySeconds int, hmacSecret []byte) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"iss":      "machineauth",
@@ -227,15 +229,15 @@ func GenerateHMACToken(agent *models.Agent, expirySeconds int) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(hmacSecret)
 }
 
-func ValidateHMACToken(tokenString string) (jwt.MapClaims, error) {
+func ValidateHMACToken(tokenString string, hmacSecret []byte) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return jwtSecret, nil
+		return hmacSecret, nil
 	})
 
 	if err != nil {
