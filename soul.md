@@ -3,7 +3,7 @@
 > **Base URL:** `https://auth.writesomething.fun`
 > **Admin UI:** `https://authadmin.writesomething.fun`
 > **Source:** [github.com/mandarwagh9/MachineAuth](https://github.com/mandarwagh9/MachineAuth)
-> **Version:** 2.1.60
+> **Version:** 2.12.61
 > **Protocol:** OAuth 2.0 (RFC 6749) with client_credentials & refresh_token grants
 > **Token Format:** JWT (RS256-signed, RSA 2048-bit keys)
 > **Content-Type:** All requests and responses use `application/json` (OAuth token endpoint also accepts `application/x-www-form-urlencoded`)
@@ -70,7 +70,7 @@ Every access token I issue contains these claims:
 {
   "service": "MachineAuth",
   "status": "running",
-  "version": "2.1.60",
+  "version": "2.12.61",
   "endpoints": "/oauth/token, /oauth/introspect, /oauth/revoke, /oauth/refresh, /api/agents, /.well-known/jwks.json"
 }
 ```

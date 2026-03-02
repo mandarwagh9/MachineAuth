@@ -107,7 +107,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{
 			"service":   "MachineAuth",
 			"status":    "running",
-			"version":   "2.1.60",
+			"version":   "2.12.61",
 			"endpoints": "/oauth/token, /oauth/introspect, /oauth/revoke, /oauth/refresh, /api/agents, /.well-known/jwks.json",
 		})
 	})
