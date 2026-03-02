@@ -1,0 +1,13 @@
+tunnel: 82277467-2594-41e3-a760-84c64a788819
+credentials-file: /home/mandar/.cloudflared/82277467-2594-41e3-a760-84c64a788819.json
+
+ingress:
+  - hostname: auth.writesomething.fun
+    service: http://localhost:80
+  - hostname: authadmin.writesomething.fun
+    service: http://localhost:80
+  - hostname: server.writesomething.fun
+    service: http://localhost:3000
+  - hostname: wiki.writesomething.fun
+    service: http://localhost:8090
+  - service: http_status:404

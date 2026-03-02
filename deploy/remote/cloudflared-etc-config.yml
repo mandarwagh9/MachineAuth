@@ -1,0 +1,27 @@
+tunnel: 82377467-2594-41e3-a760-84c64a788819
+credentials-file: /etc/cloudflared/82377467-2594-41e3-a760-84c64a788819.json
+
+ingress:
+  - hostname: auth.writesomething.fun
+    service: http://localhost:80
+  - hostname: authadmin.writesomething.fun
+    service: http://localhost:80
+  - hostname: radio.writesomething.fun
+    service: http://localhost:8080
+    originRequest:
+      noTLSVerify: true
+  - hostname: draw.writesomething.fun
+    service: http://localhost:5000
+  - hostname: collab.writesomething.fun
+    service: http://localhost:5001
+  - hostname: writesomething.fun
+    service: http://localhost:4000
+    originRequest:
+      httpHostHeader: writesomething.fun
+  - hostname: dump.writesomething.fun
+    service: http://localhost:4000
+  - hostname: server.writesomething.fun
+    service: http://localhost:3000
+  - hostname: wiki.writesomething.fun
+    service: http://localhost:8090
+  - service: http_status:404
