@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"machineauth/internal/config"
 	"machineauth/internal/models"
 	"machineauth/internal/services"
 )
@@ -14,12 +15,14 @@ import (
 type AuthHandler struct {
 	agentService *services.AgentService
 	tokenService *services.TokenService
+	cfg          *config.Config
 }
 
-func NewAuthHandler(agentService *services.AgentService, tokenService *services.TokenService) *AuthHandler {
+func NewAuthHandler(agentService *services.AgentService, tokenService *services.TokenService, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
 		agentService: agentService,
 		tokenService: tokenService,
+		cfg:          cfg,
 	}
 }
 
@@ -301,5 +304,52 @@ func (h *AuthHandler) writeError(w http.ResponseWriter, error, description strin
 	json.NewEncoder(w).Encode(models.ErrorResponse{
 		Error:            error,
 		ErrorDescription: description,
+	})
+}
+
+type AdminLoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type AdminLoginResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+}
+
+func (h *AuthHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req AdminLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeAdminError(w, "invalid_request", "invalid request body")
+		return
+	}
+
+	if req.Username == h.cfg.AdminEmail && req.Password == h.cfg.AdminPassword {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(AdminLoginResponse{
+			Success: true,
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	json.NewEncoder(w).Encode(AdminLoginResponse{
+		Success: false,
+		Message: "invalid credentials",
+	})
+}
+
+func (h *AuthHandler) writeAdminError(w http.ResponseWriter, error, description string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error":   error,
+		"message": description,
 	})
 }

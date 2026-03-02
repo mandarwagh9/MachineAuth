@@ -19,14 +19,11 @@ import { OrganizationDetailPage } from './pages/OrganizationDetail'
 
 interface AuthContextType {
   isAuthenticated: boolean
-  login: (username: string, password: string) => boolean
+  login: (username: string, password: string) => Promise<boolean>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
-
-const AUTH_USER = 'admin'
-const AUTH_PASS = 'admin'
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -38,13 +35,23 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = (username: string, password: string): boolean => {
-    if (username === AUTH_USER && password === AUTH_PASS) {
-      setIsAuthenticated(true)
-      localStorage.setItem('machineauth_auth', 'true')
-      return true
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setIsAuthenticated(true)
+        localStorage.setItem('machineauth_auth', 'true')
+        return true
+      }
+      return false
+    } catch {
+      return false
     }
-    return false
   }
 
   const logout = () => {
@@ -74,8 +81,8 @@ function Login() {
 
   const handleLogin = async (username: string, password: string) => {
     setLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 500)) // Fake delay for UX
-    if (auth?.login(username, password)) {
+    const success = await auth?.login(username, password)
+    if (success) {
       navigate('/')
     } else {
       alert('Invalid credentials')

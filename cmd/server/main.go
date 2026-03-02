@@ -55,7 +55,7 @@ func main() {
 	webhookWorker.Start()
 	defer webhookWorker.Stop()
 
-	authHandler := handlers.NewAuthHandler(agentService, tokenService)
+	authHandler := handlers.NewAuthHandler(agentService, tokenService, cfg)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
 	agentSelfHandler := handlers.NewAgentSelfHandler(agentService)
 	orgHandler := handlers.NewOrganizationHandler(orgService, teamService)
@@ -95,6 +95,8 @@ func main() {
 	mux.HandleFunc("/oauth/introspect", authHandler.Introspect)
 	mux.HandleFunc("/oauth/revoke", authHandler.Revoke)
 	mux.HandleFunc("/oauth/refresh", authHandler.Refresh)
+
+	mux.HandleFunc("/api/auth/login", authHandler.AdminLogin)
 
 	mux.HandleFunc("/.well-known/jwks.json", tokenService.JWKS)
 
@@ -235,7 +237,6 @@ func main() {
 			"token_count": agent.TokenCount,
 		})
 	})))
-
 
 	loggedMux := middleware.Logging(mux)
 	corsMux := middleware.CORS(cfg.AllowedOrigins, loggedMux)
