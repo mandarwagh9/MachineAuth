@@ -123,7 +123,7 @@ export const TokenService = {
 
 export const MetricsService = {
   get: async (): Promise<Metrics> => {
-    const response = await axios.get<Metrics>(API_BASE_URL + '/metrics')
+    const response = await api.get<Metrics>('/stats')
     return response.data
   },
 }
