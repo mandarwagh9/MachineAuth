@@ -4,11 +4,15 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -31,9 +35,9 @@ type TokenService struct {
 }
 
 func NewTokenService(cfg *config.Config, database *db.DB) (*TokenService, error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	privateKey, err := loadOrGenerateKey(cfg.JWTKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate RSA key: %w", err)
+		return nil, fmt.Errorf("failed to load or generate RSA key: %w", err)
 	}
 
 	return &TokenService{
@@ -43,6 +47,73 @@ func NewTokenService(cfg *config.Config, database *db.DB) (*TokenService, error)
 		tokenExpirySecs: cfg.JWTExpirySeconds,
 		db:              database,
 	}, nil
+}
+
+func loadOrGenerateKey(keyPath string) (*rsa.PrivateKey, error) {
+	privateKeyPath := filepath.Join(keyPath, "jwt-private.pem")
+	publicKeyPath := filepath.Join(keyPath, "jwt-public.pem")
+
+	if _, err := os.Stat(privateKeyPath); err == nil {
+		return loadPrivateKey(privateKeyPath)
+	}
+
+	if err := os.MkdirAll(keyPath, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create key directory: %w", err)
+	}
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate RSA key: %w", err)
+	}
+
+	if err := savePrivateKey(privateKeyPath, key); err != nil {
+		return nil, fmt.Errorf("failed to save private key: %w", err)
+	}
+
+	if err := savePublicKey(publicKeyPath, &key.PublicKey); err != nil {
+		return nil, fmt.Errorf("failed to save public key: %w", err)
+	}
+
+	return key, nil
+}
+
+func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key: %w", err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("invalid private key format")
+	}
+
+	return x509DecodePrivateKey(block.Bytes)
+}
+
+func savePrivateKey(path string, key *rsa.PrivateKey) error {
+	data := x509EncodePrivateKey(key)
+	block := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: data}
+	return os.WriteFile(path, pem.EncodeToMemory(block), 0600)
+}
+
+func savePublicKey(path string, key *rsa.PublicKey) error {
+	data := x509EncodePublicKey(key)
+	block := &pem.Block{Type: "RSA PUBLIC KEY", Bytes: data}
+	return os.WriteFile(path, pem.EncodeToMemory(block), 0644)
+}
+
+func x509EncodePrivateKey(key *rsa.PrivateKey) []byte {
+	return x509.MarshalPKCS1PrivateKey(key)
+}
+
+func x509DecodePrivateKey(data []byte) (*rsa.PrivateKey, error) {
+	return x509.ParsePKCS1PrivateKey(data)
+}
+
+func x509EncodePublicKey(key *rsa.PublicKey) []byte {
+	pubBytes, _ := x509.MarshalPKIXPublicKey(key)
+	return pubBytes
 }
 
 func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string) (*models.TokenResponse, error) {
@@ -77,6 +148,8 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign token: %w", err)
 	}
+
+	TokensIssued.Inc()
 
 	return &models.TokenResponse{
 		AccessToken: tokenString,
@@ -341,10 +414,12 @@ func (s *TokenService) RevokeRefreshToken(tokenString string) error {
 	if err != nil {
 		return err
 	}
-	return s.db.IncrementTokensRefreshed()
+	TokensRevoked.Inc()
+	return s.db.IncrementTokensRevoked()
 }
 
 func (s *TokenService) RecordTokenRefresh() error {
+	TokensRefreshed.Inc()
 	return s.db.IncrementTokensRefreshed()
 }
 
@@ -403,6 +478,7 @@ func (s *TokenService) RevokeAccessToken(jti string) error {
 	if err := s.db.AddRevokedToken(rt); err != nil {
 		return err
 	}
+	TokensRevoked.Inc()
 	return s.db.IncrementTokensRevoked()
 }
 

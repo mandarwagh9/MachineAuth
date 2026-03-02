@@ -14,6 +14,7 @@ type Config struct {
 	DatabaseURL         string
 	JWTSigningAlgorithm string
 	JWTKeyID            string
+	JWTKeyPath          string
 	JWTExpirySeconds    int
 	JWTIssuer           string
 	AllowedOrigins      string
@@ -34,6 +35,7 @@ func Load() (*Config, error) {
 		DatabaseURL:         getEnv("DATABASE_URL", "json:machineauth.json"),
 		JWTSigningAlgorithm: getEnv("JWT_SIGNING_ALGORITHM", "RS256"),
 		JWTKeyID:            getEnv("JWT_KEY_ID", "key-1"),
+		JWTKeyPath:          getEnv("JWT_KEY_PATH", "keys"),
 		JWTExpirySeconds:    getEnvInt("JWT_ACCESS_TOKEN_EXPIRY", 3600),
 		JWTIssuer:           getEnv("JWT_ISSUER", "https://auth.machineauth.local"),
 		AllowedOrigins:      getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),

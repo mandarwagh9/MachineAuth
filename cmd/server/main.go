@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"machineauth/internal/config"
 	"machineauth/internal/db"
 	"machineauth/internal/handlers"
@@ -83,13 +84,7 @@ func main() {
 		w.Write([]byte(fmt.Sprintf(`{"status":"ok","timestamp":"%s","agents_count":%d}`, time.Now().UTC().Format(time.RFC3339), agentCount)))
 	})
 
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		stats, _ := agentService.GetStats()
-		tokensRefreshed, tokensRevoked := tokenService.GetMetrics()
-		w.Write([]byte(fmt.Sprintf(`{"requests":%d,"tokens_issued":%d,"tokens_refreshed":%d,"tokens_revoked":%d,"active_tokens":%d,"total_agents":%d}`, stats.TotalRequests, stats.TokensIssued, tokensRefreshed, tokensRevoked, stats.ActiveTokens, stats.TotalAgents)))
-	})
+	mux.Handle("/metrics", promhttp.Handler())
 
 	mux.HandleFunc("/oauth/token", authHandler.Token)
 	mux.HandleFunc("/oauth/introspect", authHandler.Introspect)
