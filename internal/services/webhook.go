@@ -69,11 +69,11 @@ func AllWebhookEvents() []string {
 }
 
 type WebhookService struct {
-	db         *db.DB
+	db         db.Database
 	httpClient *http.Client
 }
 
-func NewWebhookService(database *db.DB) *WebhookService {
+func NewWebhookService(database db.Database) *WebhookService {
 	return &WebhookService{
 		db: database,
 		httpClient: &http.Client{

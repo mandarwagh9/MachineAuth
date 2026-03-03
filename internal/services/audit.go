@@ -10,11 +10,11 @@ import (
 )
 
 type AuditService struct {
-	jsonDB         *db.DB
+	jsonDB         db.Database
 	webhookService *WebhookService
 }
 
-func NewAuditService(database *db.DB) *AuditService {
+func NewAuditService(database db.Database) *AuditService {
 	return &AuditService{jsonDB: database}
 }
 

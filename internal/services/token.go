@@ -40,10 +40,10 @@ type TokenService struct {
 	keyID           string
 	mu              sync.RWMutex
 	tokenExpirySecs int
-	db              *db.DB
+	db              db.Database
 }
 
-func NewTokenService(cfg *config.Config, database *db.DB) (*TokenService, error) {
+func NewTokenService(cfg *config.Config, database db.Database) (*TokenService, error) {
 	privateKey, err := loadOrGenerateKey(cfg.JWTKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load or generate RSA key: %w", err)

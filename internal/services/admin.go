@@ -16,7 +16,7 @@ import (
 
 // AdminService manages admin users and their JWT sessions.
 type AdminService struct {
-	db         *db.DB
+	db         db.Database
 	cfg        *config.Config
 	privateKey *rsa.PrivateKey
 	keyID      string
@@ -24,7 +24,7 @@ type AdminService struct {
 
 // NewAdminService creates an AdminService. It re-uses the same RSA key as the
 // token service for signing admin JWTs (different issuer + audience).
-func NewAdminService(cfg *config.Config, database *db.DB, privateKey *rsa.PrivateKey, keyID string) *AdminService {
+func NewAdminService(cfg *config.Config, database db.Database, privateKey *rsa.PrivateKey, keyID string) *AdminService {
 	return &AdminService{
 		db:         database,
 		cfg:        cfg,

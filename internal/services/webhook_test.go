@@ -15,7 +15,7 @@ import (
 	"machineauth/internal/models"
 )
 
-func setupTestDB(t *testing.T) *db.DB {
+func setupTestDB(t *testing.T) db.Database {
 	t.Helper()
 	tmpFile := fmt.Sprintf("test_db_%d.json", time.Now().UnixNano())
 	t.Cleanup(func() { os.Remove(tmpFile) })

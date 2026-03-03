@@ -11,10 +11,10 @@ import (
 )
 
 type OrganizationService struct {
-	db *db.DB
+	db db.Database
 }
 
-func NewOrganizationService(database *db.DB) *OrganizationService {
+func NewOrganizationService(database db.Database) *OrganizationService {
 	return &OrganizationService{db: database}
 }
 
@@ -115,10 +115,10 @@ func toModelOrganization(o db.Organization) *models.Organization {
 }
 
 type TeamService struct {
-	db *db.DB
+	db db.Database
 }
 
-func NewTeamService(database *db.DB) *TeamService {
+func NewTeamService(database db.Database) *TeamService {
 	return &TeamService{db: database}
 }
 

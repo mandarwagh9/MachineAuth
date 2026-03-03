@@ -15,10 +15,10 @@ import (
 )
 
 type APIKeyService struct {
-	db *db.DB
+	db db.Database
 }
 
-func NewAPIKeyService(database *db.DB) *APIKeyService {
+func NewAPIKeyService(database db.Database) *APIKeyService {
 	return &APIKeyService{db: database}
 }
 

@@ -15,10 +15,10 @@ import (
 )
 
 type AgentService struct {
-	db *db.DB
+	db db.Database
 }
 
-func NewAgentService(database *db.DB) *AgentService {
+func NewAgentService(database db.Database) *AgentService {
 	return &AgentService{db: database}
 }
 
