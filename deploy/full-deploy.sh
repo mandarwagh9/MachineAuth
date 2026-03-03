@@ -131,7 +131,8 @@ sudo mkdir -p "${DEPLOY_DIR}/keys"
 sudo mkdir -p "${DEPLOY_DIR}/web"
 sudo chown -R mandar:mandar "${DEPLOY_DIR}"
 
-# Copy frontend build
+# Copy frontend build (clean old files first)
+rm -rf "${DEPLOY_DIR}/web/dist"
 cp -r "$REPO_DIR/web/dist" "${DEPLOY_DIR}/web/dist"
 
 # Create backend .env
@@ -167,9 +168,18 @@ server {
     root /opt/machineauth/web/dist;
     index index.html;
 
+    # Never cache index.html (ensures new deploys are picked up immediately)
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+    }
+
     # SPA fallback - serve index.html for all non-file routes
     location / {
         try_files $uri $uri/ /index.html;
+        # For the fallback index.html, prevent caching
+        add_header Cache-Control "no-cache" always;
     }
 
     # Proxy API calls to the Go backend
