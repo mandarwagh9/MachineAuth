@@ -186,6 +186,14 @@ func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
 		} else {
 			tokenResp.RefreshToken = refreshToken
 		}
+	} else if tokenReq.GrantType == "refresh_token" {
+		// Refresh token rotation: issue a new refresh token on each refresh.
+		refreshToken, err := h.tokenService.GenerateRefreshToken(agent.ID.String())
+		if err != nil {
+			log.Printf("failed to rotate refresh token: %v", err)
+		} else {
+			tokenResp.RefreshToken = refreshToken
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -366,6 +374,14 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failed to generate token: %v", err)
 		h.writeError(w, "server_error", "failed to generate token")
 		return
+	}
+
+	// Refresh token rotation: issue a new refresh token.
+	newRefresh, err := h.tokenService.GenerateRefreshToken(agent.ID.String())
+	if err != nil {
+		log.Printf("failed to rotate refresh token: %v", err)
+	} else {
+		tokenResp.RefreshToken = newRefresh
 	}
 
 	w.Header().Set("Content-Type", "application/json")
