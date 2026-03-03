@@ -61,8 +61,8 @@ func (s *AuditService) LogAgentCreated(agent *models.Agent, ipAddress, userAgent
 func (s *AuditService) LogAgentDeleted(agentID uuid.UUID, ipAddress, userAgent string) error {
 	err := s.Log(EventAgentDeleted, &agentID, ipAddress, userAgent)
 	s.triggerWebhook(EventAgentDeleted, map[string]interface{}{
-		"event":    EventAgentDeleted,
-		"agent_id": agentID.String(),
+		"event":     EventAgentDeleted,
+		"agent_id":  agentID.String(),
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 	return err
@@ -71,8 +71,8 @@ func (s *AuditService) LogAgentDeleted(agentID uuid.UUID, ipAddress, userAgent s
 func (s *AuditService) LogAgentUpdated(agentID uuid.UUID, ipAddress, userAgent string) error {
 	err := s.Log(EventAgentUpdated, &agentID, ipAddress, userAgent)
 	s.triggerWebhook(EventAgentUpdated, map[string]interface{}{
-		"event":    EventAgentUpdated,
-		"agent_id": agentID.String(),
+		"event":     EventAgentUpdated,
+		"agent_id":  agentID.String(),
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 	return err
@@ -81,8 +81,8 @@ func (s *AuditService) LogAgentUpdated(agentID uuid.UUID, ipAddress, userAgent s
 func (s *AuditService) LogCredentialsRotated(agentID uuid.UUID, ipAddress, userAgent string) error {
 	err := s.Log(EventAgentCredentialsRotated, &agentID, ipAddress, userAgent)
 	s.triggerWebhook(EventAgentCredentialsRotated, map[string]interface{}{
-		"event":    EventAgentCredentialsRotated,
-		"agent_id": agentID.String(),
+		"event":     EventAgentCredentialsRotated,
+		"agent_id":  agentID.String(),
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 	return err
@@ -91,8 +91,8 @@ func (s *AuditService) LogCredentialsRotated(agentID uuid.UUID, ipAddress, userA
 func (s *AuditService) LogTokenIssued(agentID uuid.UUID, ipAddress, userAgent string) error {
 	err := s.Log(EventTokenIssued, &agentID, ipAddress, userAgent)
 	s.triggerWebhook(EventTokenIssued, map[string]interface{}{
-		"event":    EventTokenIssued,
-		"agent_id": agentID.String(),
+		"event":     EventTokenIssued,
+		"agent_id":  agentID.String(),
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 	return err

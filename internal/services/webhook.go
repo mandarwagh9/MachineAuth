@@ -83,7 +83,7 @@ func NewWebhookService(database db.Database) *WebhookService {
 }
 
 // CreateWebhook creates a new webhook configuration
-func (s *WebhookService) CreateWebhook(req models.CreateWebhookRequest) (*models.CreateWebhookResponse, error) {
+func (s *WebhookService) CreateWebhook(req models.CreateWebhookRequest, orgID ...string) (*models.CreateWebhookResponse, error) {
 	if req.Name == "" {
 		return nil, fmt.Errorf("webhook name is required")
 	}
@@ -127,6 +127,9 @@ func (s *WebhookService) CreateWebhook(req models.CreateWebhookRequest) (*models
 		UpdatedAt:        now,
 		ConsecutiveFails: 0,
 	}
+	if len(orgID) > 0 && orgID[0] != "" {
+		webhook.OrganizationID = orgID[0]
+	}
 
 	if err := s.db.CreateWebhook(webhook); err != nil {
 		return nil, fmt.Errorf("failed to create webhook: %w", err)
@@ -151,6 +154,20 @@ func (s *WebhookService) GetWebhook(id uuid.UUID) (*models.WebhookConfig, error)
 // ListWebhooks returns all webhooks
 func (s *WebhookService) ListWebhooks() ([]models.WebhookConfig, error) {
 	webhooks, err := s.db.ListWebhooks()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list webhooks: %w", err)
+	}
+
+	result := make([]models.WebhookConfig, len(webhooks))
+	for i, w := range webhooks {
+		result[i] = toModelWebhook(&w)
+	}
+	return result, nil
+}
+
+// ListWebhooksByOrg returns webhooks scoped to an organization.
+func (s *WebhookService) ListWebhooksByOrg(orgID string) ([]models.WebhookConfig, error) {
+	webhooks, err := s.db.ListWebhooksByOrganization(orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list webhooks: %w", err)
 	}
@@ -214,9 +231,24 @@ func (s *WebhookService) DeleteWebhook(id uuid.UUID) error {
 	return s.db.DeleteWebhook(id.String())
 }
 
-// TriggerEvent fires webhooks for a given event
+// TriggerEvent fires webhooks for a given event (global, all orgs)
 func (s *WebhookService) TriggerEvent(event string, payload interface{}) {
-	webhooks, err := s.db.ListActiveWebhooksForEvent(event)
+	s.triggerEventInternal(event, payload, "")
+}
+
+// TriggerEventForOrg fires webhooks for a given event scoped to an organization.
+func (s *WebhookService) TriggerEventForOrg(event string, payload interface{}, orgID string) {
+	s.triggerEventInternal(event, payload, orgID)
+}
+
+func (s *WebhookService) triggerEventInternal(event string, payload interface{}, orgID string) {
+	var webhooks []db.WebhookConfig
+	var err error
+	if orgID != "" {
+		webhooks, err = s.db.ListActiveWebhooksForEventByOrg(event, orgID)
+	} else {
+		webhooks, err = s.db.ListActiveWebhooksForEvent(event)
+	}
 	if err != nil {
 		log.Printf("failed to list webhooks for event %s: %v", event, err)
 		return

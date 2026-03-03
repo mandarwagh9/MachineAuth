@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 
 	"machineauth/internal/db"
 	"machineauth/internal/models"
@@ -25,10 +24,7 @@ func NewAPIKeyService(database db.Database) *APIKeyService {
 func (s *APIKeyService) Create(orgID string, req models.CreateAPIKeyRequest) (*models.CreateAPIKeyResponse, error) {
 	id := uuid.New()
 	key := generateAPIKey()
-	keyHash, err := bcrypt.GenerateFromPassword([]byte(key), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash API key: %w", err)
-	}
+	keyHash := HashKey(key)
 
 	prefix := key[:12]
 
@@ -49,7 +45,7 @@ func (s *APIKeyService) Create(orgID string, req models.CreateAPIKeyRequest) (*m
 		OrganizationID: orgID,
 		TeamID:         teamID,
 		Name:           req.Name,
-		KeyHash:        string(keyHash),
+		KeyHash:        keyHash,
 		Prefix:         prefix,
 		IsActive:       true,
 		ExpiresAt:      expiresAt,
@@ -90,12 +86,9 @@ func (s *APIKeyService) GetByID(id string) (*models.APIKey, error) {
 }
 
 func (s *APIKeyService) Validate(key string) (*models.APIKey, error) {
-	keyHash, err := bcrypt.GenerateFromPassword([]byte(key), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash key: %w", err)
-	}
+	keyHash := HashKey(key)
 
-	apiKey, err := s.db.GetAPIKeyByKeyHash(string(keyHash))
+	apiKey, err := s.db.GetAPIKeyByKeyHash(keyHash)
 	if err != nil {
 		return nil, fmt.Errorf("invalid API key")
 	}
