@@ -163,7 +163,12 @@ type DB struct {
 	*JSONDB
 }
 
-func Connect(databaseURL string) (*DB, error) {
+// Connect returns a Database backed by PostgreSQL or JSON file.
+// postgres:// or postgresql:// → PostgresDB, json:filename → JSONDB.
+func Connect(databaseURL string) (Database, error) {
+	if strings.HasPrefix(databaseURL, "postgres://") || strings.HasPrefix(databaseURL, "postgresql://") {
+		return connectPostgres(databaseURL)
+	}
 	if strings.HasPrefix(databaseURL, "json:") || strings.HasSuffix(databaseURL, ".json") {
 		return connectJSON(databaseURL)
 	}
@@ -171,7 +176,7 @@ func Connect(databaseURL string) (*DB, error) {
 	return connectJSON("json:machineauth.json")
 }
 
-func connectJSON(databaseURL string) (*DB, error) {
+func connectJSON(databaseURL string) (Database, error) {
 	filename := "machineauth.json"
 	if strings.HasPrefix(databaseURL, "json:") {
 		filename = strings.TrimPrefix(databaseURL, "json:")
@@ -907,6 +912,4 @@ func (db *DB) ListAgentsPaginated(search, status, orgID, sort string, page, limi
 	return filtered[start:end], total, nil
 }
 
-func RunMigrations(db *DB) error {
-	return nil
-}
+// RunMigrations is now in migrate.go (applies SQL migrations for Postgres, no-op for JSON).
