@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"machineauth/internal/middleware"
 	"machineauth/internal/models"
 	"machineauth/internal/services"
 )
@@ -109,7 +110,15 @@ func (h *WebhookHandler) HandleEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebhookHandler) listWebhooks(w http.ResponseWriter, r *http.Request) {
-	webhooks, err := h.webhookService.ListWebhooks()
+	// If org_id is in context, scope to that org.
+	orgID, _ := middleware.GetOrgIDFromContext(r.Context())
+	var webhooks []models.WebhookConfig
+	var err error
+	if orgID != "" {
+		webhooks, err = h.webhookService.ListWebhooksByOrg(orgID)
+	} else {
+		webhooks, err = h.webhookService.ListWebhooks()
+	}
 	if err != nil {
 		log.Printf("failed to list webhooks: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -138,7 +147,10 @@ func (h *WebhookHandler) createWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.webhookService.CreateWebhook(req)
+	resp, err := h.webhookService.CreateWebhook(req, func() string {
+		orgID, _ := middleware.GetOrgIDFromContext(r.Context())
+		return orgID
+	}())
 	if err != nil {
 		log.Printf("failed to create webhook: %v", err)
 		writeJSONError(w, http.StatusBadRequest, "invalid_request", err.Error())

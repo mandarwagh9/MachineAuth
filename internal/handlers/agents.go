@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"machineauth/internal/middleware"
 	"machineauth/internal/models"
 	"machineauth/internal/services"
 )
@@ -71,6 +72,11 @@ func (h *AgentsHandler) ListPaginated(w http.ResponseWriter, r *http.Request) {
 		Status: q.Get("status"),
 		OrgID:  q.Get("org_id"),
 		Sort:   q.Get("sort"),
+	}
+
+	// If org_id is in context (from auth middleware), use it to scope results.
+	if ctxOrgID, ok := middleware.GetOrgIDFromContext(r.Context()); ok && ctxOrgID != "" {
+		params.OrgID = ctxOrgID
 	}
 
 	agents, total, err := h.agentService.ListPaginated(params)
@@ -270,6 +276,13 @@ func (h *AgentsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
+	}
+
+	// Inject org_id from context if not explicitly set in the request.
+	if req.OrganizationID == "" {
+		if ctxOrgID, ok := middleware.GetOrgIDFromContext(r.Context()); ok && ctxOrgID != "" {
+			req.OrganizationID = ctxOrgID
+		}
 	}
 
 	resp, err := h.agentService.Create(req)

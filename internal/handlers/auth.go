@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"machineauth/internal/config"
+	"machineauth/internal/middleware"
 	"machineauth/internal/models"
 	"machineauth/internal/services"
 )
@@ -439,5 +440,104 @@ func (h *AuthHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusUnauthorized)
 	json.NewEncoder(w).Encode(models.AdminTokenResponse{
 		Success: false,
+	})
+}
+
+// Signup handles POST /api/auth/signup — self-service registration.
+func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.SignupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+
+	if req.Email == "" || req.Password == "" || req.OrgName == "" || req.OrgSlug == "" {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "email, password, org_name, and org_slug are required")
+		return
+	}
+
+	if h.adminService == nil {
+		writeJSONError(w, http.StatusInternalServerError, "server_error", "signup not available")
+		return
+	}
+
+	resp, err := h.adminService.Signup(req)
+	if err != nil {
+		log.Printf("signup failed: %v", err)
+		writeJSONError(w, http.StatusBadRequest, "signup_failed", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// SwitchOrg handles POST /api/auth/switch-org — switch organization context.
+func (h *AuthHandler) SwitchOrg(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	adminID, ok := middleware.GetAdminIDFromContext(r.Context())
+	if !ok || adminID == "" {
+		writeJSONError(w, http.StatusUnauthorized, "unauthorized", "not authenticated")
+		return
+	}
+
+	var req struct {
+		OrgID string `json:"org_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.OrgID == "" {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "org_id is required")
+		return
+	}
+
+	resp, err := h.adminService.IssueTokenForOrg(adminID, req.OrgID)
+	if err != nil {
+		log.Printf("switch org failed for user %s: %v", adminID, err)
+		writeJSONError(w, http.StatusForbidden, "forbidden", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+// GetMe returns the current admin user info and org memberships.
+func (h *AuthHandler) AdminGetMe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	adminID, ok := middleware.GetAdminIDFromContext(r.Context())
+	if !ok || adminID == "" {
+		writeJSONError(w, http.StatusUnauthorized, "unauthorized", "not authenticated")
+		return
+	}
+
+	user, err := h.adminService.GetUserByID(adminID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+
+	memberships, _ := h.adminService.ListOrgMemberships(adminID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":    user.ID,
+			"email": user.Email,
+			"role":  user.Role,
+		},
+		"memberships": memberships,
 	})
 }
