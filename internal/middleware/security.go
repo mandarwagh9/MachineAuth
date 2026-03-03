@@ -17,8 +17,8 @@ type RateLimiterConfig struct {
 }
 
 type rateBucket struct {
-	count     int
-	resetAt   time.Time
+	count   int
+	resetAt time.Time
 }
 
 // RateLimiter is an in-memory IP-based rate limiter using a fixed window.
