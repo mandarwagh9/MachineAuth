@@ -129,6 +129,7 @@ func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
 		tokenReq.ClientID = r.Form.Get("client_id")
 		tokenReq.ClientSecret = r.Form.Get("client_secret")
 		tokenReq.Scope = r.Form.Get("scope")
+		tokenReq.RefreshToken = r.Form.Get("refresh_token")
 	}
 
 	if tokenReq.GrantType != "client_credentials" && tokenReq.GrantType != "refresh_token" {
