@@ -48,6 +48,12 @@ func main() {
 	apiKeyService := services.NewAPIKeyService(database)
 	webhookService := services.NewWebhookService(database)
 
+	// Admin service — uses the same RSA key for signing admin JWTs.
+	adminService := services.NewAdminService(cfg, database, tokenService.PrivateKey(), tokenService.KeyID())
+	if err := adminService.EnsureDefaultAdmin(); err != nil {
+		log.Printf("warning: failed to ensure default admin: %v", err)
+	}
+
 	// Wire up webhook triggering in audit service
 	auditService.SetWebhookService(webhookService)
 
@@ -57,13 +63,31 @@ func main() {
 	defer webhookWorker.Stop()
 
 	authHandler := handlers.NewAuthHandler(agentService, tokenService, cfg)
+	authHandler.SetAdminService(adminService)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
 	agentSelfHandler := handlers.NewAgentSelfHandler(agentService)
 	orgHandler := handlers.NewOrganizationHandler(orgService, teamService)
 	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
 	webhookHandler := handlers.NewWebhookHandler(webhookService, auditService)
+	auditHandler := handlers.NewAuditHandler(auditService)
+
+	// Rate limiters.
+	oauthLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{Limit: 30, Window: 60 * time.Second})
+	adminLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{Limit: 10, Window: 60 * time.Second})
+	apiLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{Limit: 120, Window: 60 * time.Second})
+
+	// Auth middleware.
+	jwtAuth := middleware.JWTAuth(tokenService)
+	adminAuth := middleware.AdminAuth(adminService)
+
+	// Helper to apply admin auth + rate limit to a handler.
+	adminProtected := func(h http.HandlerFunc) http.Handler {
+		return middleware.RateLimit(apiLimiter)(adminAuth(http.HandlerFunc(h)))
+	}
 
 	mux := http.NewServeMux()
+
+	// ── Public infrastructure endpoints ────────────────────────────────
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -85,34 +109,45 @@ func main() {
 	})
 
 	mux.Handle("/metrics", promhttp.Handler())
-
-	mux.HandleFunc("/oauth/token", authHandler.Token)
-	mux.HandleFunc("/oauth/introspect", authHandler.Introspect)
-	mux.HandleFunc("/oauth/revoke", authHandler.Revoke)
-	mux.HandleFunc("/oauth/refresh", authHandler.Refresh)
-
-	mux.HandleFunc("/api/auth/login", authHandler.AdminLogin)
-
 	mux.HandleFunc("/.well-known/jwks.json", tokenService.JWKS)
 
-	mux.HandleFunc("/api/agents", func(w http.ResponseWriter, r *http.Request) {
+	// ── OAuth endpoints (public, rate-limited) ─────────────────────────
+
+	oauthRL := middleware.RateLimit(oauthLimiter)
+
+	mux.Handle("/oauth/token", oauthRL(http.HandlerFunc(authHandler.Token)))
+	mux.Handle("/oauth/introspect", oauthRL(http.HandlerFunc(authHandler.Introspect)))
+	mux.Handle("/oauth/revoke", oauthRL(http.HandlerFunc(authHandler.Revoke)))
+	mux.Handle("/oauth/refresh", oauthRL(http.HandlerFunc(authHandler.Refresh)))
+
+	// ── Admin auth endpoint (public, aggressively rate-limited) ────────
+
+	mux.Handle("/api/auth/login", middleware.RateLimit(adminLimiter)(http.HandlerFunc(authHandler.AdminLogin)))
+
+	// ── Admin-protected CRUD endpoints ─────────────────────────────────
+
+	mux.Handle("/api/agents", adminProtected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			agentsHandler.List(w, r)
+			agentsHandler.ListPaginated(w, r)
 		case http.MethodPost:
 			agentsHandler.Create(w, r)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
-	mux.HandleFunc("/api/agents/", agentsHandler.HandleAgent)
+	}))
+	mux.Handle("/api/agents/", adminProtected(agentsHandler.HandleAgent))
 
-	// Webhook routes
-	mux.HandleFunc("/api/webhooks", webhookHandler.ListAndCreate)
-	mux.HandleFunc("/api/webhooks/", webhookHandler.HandleWebhook)
-	mux.HandleFunc("/api/webhook-events", webhookHandler.HandleEvents)
+	// Audit logs (admin-protected).
+	mux.Handle("/api/audit-logs", adminProtected(auditHandler.ListAuditLogs))
 
-	mux.HandleFunc("/api/organizations", func(w http.ResponseWriter, r *http.Request) {
+	// Webhook routes (admin-protected).
+	mux.Handle("/api/webhooks", adminProtected(webhookHandler.ListAndCreate))
+	mux.Handle("/api/webhooks/", adminProtected(webhookHandler.HandleWebhook))
+	mux.Handle("/api/webhook-events", adminProtected(webhookHandler.HandleEvents))
+
+	// Organization routes (admin-protected).
+	mux.Handle("/api/organizations", adminProtected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			orgHandler.ListOrganizations(w, r)
@@ -121,9 +156,9 @@ func main() {
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	}))
 
-	mux.HandleFunc("/api/organizations/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/api/organizations/", adminProtected(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
 		if strings.HasSuffix(path, "/api-keys") || strings.HasSuffix(path, "/api-keys/") {
@@ -199,9 +234,9 @@ func main() {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
 		}
-	})
+	}))
 
-	jwtAuth := middleware.JWTAuth(tokenService)
+	// ── Agent self-service endpoints (agent JWT-protected) ─────────────
 
 	mux.Handle("/api/agents/me", jwtAuth(http.HandlerFunc(agentSelfHandler.GetMe)))
 	mux.Handle("/api/agents/me/usage", jwtAuth(http.HandlerFunc(agentSelfHandler.GetUsage)))
@@ -233,12 +268,19 @@ func main() {
 		})
 	})))
 
-	loggedMux := middleware.Logging(mux)
-	corsMux := middleware.CORS(cfg.AllowedOrigins, loggedMux)
+	// ── Middleware chain ────────────────────────────────────────────────
+
+	handler := middleware.SecurityHeaders(
+		middleware.BodyLimit(1 << 20)(
+			middleware.Logging(
+				middleware.CORS(cfg.AllowedOrigins, mux),
+			),
+		),
+	)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      corsMux,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
