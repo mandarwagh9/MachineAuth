@@ -102,6 +102,13 @@ echo "[6/11] Building Go backend..."
 
 cd "$REPO_DIR"
 export PATH=$PATH:/usr/local/go/bin
+
+# Ensure deploy directory exists before build
+sudo mkdir -p "${DEPLOY_DIR}"
+sudo mkdir -p "${DEPLOY_DIR}/keys"
+sudo mkdir -p "${DEPLOY_DIR}/web"
+sudo chown -R mandar:mandar "${DEPLOY_DIR}"
+
 go mod download
 CGO_ENABLED=0 go build -o "${DEPLOY_DIR}/machineauth" ./cmd/server
 echo "  Backend binary built: ${DEPLOY_DIR}/machineauth"
