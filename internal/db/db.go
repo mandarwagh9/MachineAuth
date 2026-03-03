@@ -13,6 +13,7 @@ type JSONDB struct {
 	mu                sync.RWMutex
 	filename          string
 	Agents            []Agent            `json:"agents"`
+	AdminUsers        []AdminUser        `json:"admin_users"`
 	AuditLogs         []AuditLog         `json:"audit_logs"`
 	RefreshTokens     []RefreshToken     `json:"refresh_tokens"`
 	RevokedTokens     []RevokedToken     `json:"revoked_tokens"`
@@ -22,6 +23,16 @@ type JSONDB struct {
 	APIKeys           []APIKey           `json:"api_keys"`
 	WebhookConfigs    []WebhookConfig    `json:"webhook_configs"`
 	WebhookDeliveries []WebhookDelivery  `json:"webhook_deliveries"`
+}
+
+// AdminUser stored in JSON DB.
+type AdminUser struct {
+	ID           string    `json:"id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"password_hash"`
+	Role         string    `json:"role"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Metrics struct {
@@ -65,23 +76,27 @@ type APIKey struct {
 }
 
 type Agent struct {
-	ID                string     `json:"id"`
-	OrganizationID    string     `json:"organization_id"`
-	TeamID            *string    `json:"team_id,omitempty"`
-	Name              string     `json:"name"`
-	ClientID          string     `json:"client_id"`
-	ClientSecretHash  string     `json:"client_secret_hash"`
-	Scopes            []string   `json:"scopes"`
-	PublicKey         *string    `json:"public_key,omitempty"`
-	IsActive          bool       `json:"is_active"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
-	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
-	TokenCount        int        `json:"token_count"`
-	RefreshCount      int        `json:"refresh_count"`
-	LastActivityAt    *time.Time `json:"last_activity_at,omitempty"`
-	LastTokenIssuedAt *time.Time `json:"last_token_issued_at,omitempty"`
-	RotationHistory   []Rotation `json:"rotation_history"`
+	ID                string                 `json:"id"`
+	OrganizationID    string                 `json:"organization_id"`
+	TeamID            *string                `json:"team_id,omitempty"`
+	Name              string                 `json:"name"`
+	Description       string                 `json:"description,omitempty"`
+	Tags              []string               `json:"tags,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
+	ClientID          string                 `json:"client_id"`
+	ClientSecretHash  string                 `json:"client_secret_hash"`
+	Scopes            []string               `json:"scopes"`
+	PublicKey         *string                `json:"public_key,omitempty"`
+	Status            string                 `json:"status"`
+	IsActive          bool                   `json:"is_active"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
+	ExpiresAt         *time.Time             `json:"expires_at,omitempty"`
+	TokenCount        int                    `json:"token_count"`
+	RefreshCount      int                    `json:"refresh_count"`
+	LastActivityAt    *time.Time             `json:"last_activity_at,omitempty"`
+	LastTokenIssuedAt *time.Time             `json:"last_token_issued_at,omitempty"`
+	RotationHistory   []Rotation             `json:"rotation_history"`
 }
 
 type Rotation struct {
@@ -109,6 +124,7 @@ type AuditLog struct {
 	Action    string    `json:"action"`
 	IPAddress string    `json:"ip_address,omitempty"`
 	UserAgent string    `json:"user_agent,omitempty"`
+	Details   string    `json:"details,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -725,6 +741,170 @@ func (db *DB) ListPendingDeliveries() ([]WebhookDelivery, error) {
 		}
 	}
 	return result, nil
+}
+
+// ── Admin User methods ───────────────────────────────────────────────
+
+func (db *DB) CreateAdminUser(user AdminUser) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.AdminUsers = append(db.AdminUsers, user)
+	return db.Save()
+}
+
+func (db *DB) GetAdminUserByEmail(email string) (*AdminUser, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	for i := range db.AdminUsers {
+		if db.AdminUsers[i].Email == email {
+			return &db.AdminUsers[i], nil
+		}
+	}
+	return nil, fmt.Errorf("admin user not found")
+}
+
+func (db *DB) GetAdminUserByID(id string) (*AdminUser, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	for i := range db.AdminUsers {
+		if db.AdminUsers[i].ID == id {
+			return &db.AdminUsers[i], nil
+		}
+	}
+	return nil, fmt.Errorf("admin user not found")
+}
+
+func (db *DB) ListAdminUsers() ([]AdminUser, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	out := make([]AdminUser, len(db.AdminUsers))
+	copy(out, db.AdminUsers)
+	return out, nil
+}
+
+// ── Audit log query methods ──────────────────────────────────────────
+
+func (db *DB) ListAuditLogs(agentID, action, ipAddress string, from, to *time.Time, page, limit int) ([]AuditLog, int, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var filtered []AuditLog
+	for _, l := range db.AuditLogs {
+		if agentID != "" && (l.AgentID == nil || *l.AgentID != agentID) {
+			continue
+		}
+		if action != "" && l.Action != action {
+			continue
+		}
+		if ipAddress != "" && l.IPAddress != ipAddress {
+			continue
+		}
+		if from != nil && l.CreatedAt.Before(*from) {
+			continue
+		}
+		if to != nil && l.CreatedAt.After(*to) {
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+
+	total := len(filtered)
+
+	// Sort descending by created_at (most recent first).
+	for i := 0; i < len(filtered); i++ {
+		for j := i + 1; j < len(filtered); j++ {
+			if filtered[j].CreatedAt.After(filtered[i].CreatedAt) {
+				filtered[i], filtered[j] = filtered[j], filtered[i]
+			}
+		}
+	}
+
+	// Paginate.
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	start := (page - 1) * limit
+	if start >= len(filtered) {
+		return []AuditLog{}, total, nil
+	}
+	end := start + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[start:end], total, nil
+}
+
+// ── Agent count (for pagination) ─────────────────────────────────────
+
+func (db *DB) CountAgents() (int, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	return len(db.Agents), nil
+}
+
+func (db *DB) ListAgentsPaginated(search, status, orgID, sort string, page, limit int) ([]Agent, int, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var filtered []Agent
+	for _, a := range db.Agents {
+		if search != "" {
+			searchLower := strings.ToLower(search)
+			if !strings.Contains(strings.ToLower(a.Name), searchLower) &&
+				!strings.Contains(strings.ToLower(a.ClientID), searchLower) &&
+				!strings.Contains(strings.ToLower(a.Description), searchLower) {
+				continue
+			}
+		}
+		if status != "" && a.Status != status {
+			continue
+		}
+		if orgID != "" && a.OrganizationID != orgID {
+			continue
+		}
+		filtered = append(filtered, a)
+	}
+
+	total := len(filtered)
+
+	// Sort by created_at descending by default.
+	if sort == "name" {
+		for i := 0; i < len(filtered); i++ {
+			for j := i + 1; j < len(filtered); j++ {
+				if strings.ToLower(filtered[i].Name) > strings.ToLower(filtered[j].Name) {
+					filtered[i], filtered[j] = filtered[j], filtered[i]
+				}
+			}
+		}
+	} else {
+		// Default: newest first.
+		for i := 0; i < len(filtered); i++ {
+			for j := i + 1; j < len(filtered); j++ {
+				if filtered[j].CreatedAt.After(filtered[i].CreatedAt) {
+					filtered[i], filtered[j] = filtered[j], filtered[i]
+				}
+			}
+		}
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	start := (page - 1) * limit
+	if start >= len(filtered) {
+		return []Agent{}, total, nil
+	}
+	end := start + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[start:end], total, nil
 }
 
 func RunMigrations(db *DB) error {

@@ -6,23 +6,38 @@ import (
 	"github.com/google/uuid"
 )
 
+// AgentStatus represents the lifecycle state of an agent.
+type AgentStatus string
+
+const (
+	AgentStatusActive    AgentStatus = "active"
+	AgentStatusInactive  AgentStatus = "inactive"
+	AgentStatusSuspended AgentStatus = "suspended"
+	AgentStatusPending   AgentStatus = "pending"
+	AgentStatusExpired   AgentStatus = "expired"
+)
+
 type Agent struct {
-	ID                uuid.UUID  `json:"id"`
-	OrganizationID    string     `json:"organization_id"`
-	TeamID            *uuid.UUID `json:"team_id,omitempty"`
-	Name              string     `json:"name"`
-	ClientID          string     `json:"client_id"`
-	ClientSecretHash  string     `json:"-"`
-	Scopes            []string   `json:"scopes,omitempty"`
-	PublicKey         *string    `json:"public_key,omitempty"`
-	IsActive          bool       `json:"is_active"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
-	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
-	TokenCount        int        `json:"token_count"`
-	RefreshCount      int        `json:"refresh_count"`
-	LastActivityAt    *time.Time `json:"last_activity_at,omitempty"`
-	LastTokenIssuedAt *time.Time `json:"last_token_issued_at,omitempty"`
+	ID                uuid.UUID              `json:"id"`
+	OrganizationID    string                 `json:"organization_id"`
+	TeamID            *uuid.UUID             `json:"team_id,omitempty"`
+	Name              string                 `json:"name"`
+	Description       string                 `json:"description,omitempty"`
+	Tags              []string               `json:"tags,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
+	ClientID          string                 `json:"client_id"`
+	ClientSecretHash  string                 `json:"-"`
+	Scopes            []string               `json:"scopes,omitempty"`
+	PublicKey         *string                `json:"public_key,omitempty"`
+	Status            AgentStatus            `json:"status"`
+	IsActive          bool                   `json:"is_active"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
+	ExpiresAt         *time.Time             `json:"expires_at,omitempty"`
+	TokenCount        int                    `json:"token_count"`
+	RefreshCount      int                    `json:"refresh_count"`
+	LastActivityAt    *time.Time             `json:"last_activity_at,omitempty"`
+	LastTokenIssuedAt *time.Time             `json:"last_token_issued_at,omitempty"`
 }
 
 type Rotation struct {
@@ -42,11 +57,24 @@ type AgentUsage struct {
 }
 
 type CreateAgentRequest struct {
-	Name           string     `json:"name"`
-	OrganizationID string     `json:"organization_id"`
-	TeamID         *uuid.UUID `json:"team_id,omitempty"`
-	Scopes         []string   `json:"scopes,omitempty"`
-	ExpiresIn      *int       `json:"expires_in,omitempty"`
+	Name           string                 `json:"name"`
+	Description    string                 `json:"description,omitempty"`
+	Tags           []string               `json:"tags,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	OrganizationID string                 `json:"organization_id"`
+	TeamID         *uuid.UUID             `json:"team_id,omitempty"`
+	Scopes         []string               `json:"scopes,omitempty"`
+	ExpiresIn      *int                   `json:"expires_in,omitempty"`
+}
+
+type UpdateAgentRequest struct {
+	Name        *string                `json:"name,omitempty"`
+	Description *string                `json:"description,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Scopes      []string               `json:"scopes,omitempty"`
+	Status      *AgentStatus           `json:"status,omitempty"`
+	ExpiresAt   *time.Time             `json:"expires_at,omitempty"`
 }
 
 type CreateAgentResponse struct {
@@ -60,7 +88,27 @@ type AgentResponse struct {
 }
 
 type AgentsListResponse struct {
-	Agents []Agent `json:"agents"`
+	Agents     []Agent     `json:"agents"`
+	Pagination *Pagination `json:"pagination,omitempty"`
+}
+
+// Pagination metadata for list endpoints.
+type Pagination struct {
+	Total      int    `json:"total"`
+	Page       int    `json:"page"`
+	Limit      int    `json:"limit"`
+	TotalPages int    `json:"total_pages"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
+
+// PaginationParams are query-string parameters accepted on list endpoints.
+type PaginationParams struct {
+	Page   int
+	Limit  int
+	Search string
+	Status string
+	OrgID  string
+	Sort   string
 }
 
 type TokenRequest struct {
@@ -91,7 +139,48 @@ type AuditLog struct {
 	Action    string     `json:"action"`
 	IPAddress string     `json:"ip_address,omitempty"`
 	UserAgent string     `json:"user_agent,omitempty"`
+	Details   string     `json:"details,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
+}
+
+type AuditLogsListResponse struct {
+	Logs       []AuditLog  `json:"logs"`
+	Pagination *Pagination `json:"pagination,omitempty"`
+}
+
+type AuditLogQuery struct {
+	AgentID   string
+	Action    string
+	IPAddress string
+	From      *time.Time
+	To        *time.Time
+	Page      int
+	Limit     int
+}
+
+// AdminUser represents an admin user that can access the management API.
+type AdminUser struct {
+	ID           uuid.UUID `json:"id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"-"`
+	Role         string    `json:"role"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// AdminLoginRequest is the payload for POST /api/auth/login.
+type AdminLoginRequest struct {
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// AdminTokenResponse is returned on successful admin login.
+type AdminTokenResponse struct {
+	Success     bool   `json:"success"`
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	Role        string `json:"role"`
 }
 
 type JWKS struct {
