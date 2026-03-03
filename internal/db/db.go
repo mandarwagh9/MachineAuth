@@ -12,17 +12,19 @@ import (
 type JSONDB struct {
 	mu                sync.RWMutex
 	filename          string
-	Agents            []Agent            `json:"agents"`
-	AdminUsers        []AdminUser        `json:"admin_users"`
-	AuditLogs         []AuditLog         `json:"audit_logs"`
-	RefreshTokens     []RefreshToken     `json:"refresh_tokens"`
-	RevokedTokens     []RevokedToken     `json:"revoked_tokens"`
-	Metrics           Metrics            `json:"metrics"`
-	Organizations     []Organization     `json:"organizations"`
-	Teams             []Team             `json:"teams"`
-	APIKeys           []APIKey           `json:"api_keys"`
-	WebhookConfigs    []WebhookConfig    `json:"webhook_configs"`
-	WebhookDeliveries []WebhookDelivery  `json:"webhook_deliveries"`
+	Agents            []Agent           `json:"agents"`
+	AdminUsers        []AdminUser       `json:"admin_users"`
+	AuditLogs         []AuditLog        `json:"audit_logs"`
+	RefreshTokens     []RefreshToken    `json:"refresh_tokens"`
+	RevokedTokens     []RevokedToken    `json:"revoked_tokens"`
+	Metrics           Metrics           `json:"metrics"`
+	Organizations     []Organization    `json:"organizations"`
+	Teams             []Team            `json:"teams"`
+	APIKeys           []APIKey          `json:"api_keys"`
+	WebhookConfigs    []WebhookConfig   `json:"webhook_configs"`
+	WebhookDeliveries []WebhookDelivery `json:"webhook_deliveries"`
+	OrgMembers        []OrgMember       `json:"org_members"`
+	OrgSigningKeys    []OrgSigningKey   `json:"org_signing_keys"`
 }
 
 // AdminUser stored in JSON DB.
@@ -143,6 +145,29 @@ type WebhookConfig struct {
 	UpdatedAt        time.Time  `json:"updated_at"`
 	LastTestedAt     *time.Time `json:"last_tested_at,omitempty"`
 	ConsecutiveFails int        `json:"consecutive_fails"`
+}
+
+// OrgMember represents a user's membership in an organization.
+type OrgMember struct {
+	ID             string    `json:"id"`
+	UserID         string    `json:"user_id"`
+	OrganizationID string    `json:"organization_id"`
+	Role           string    `json:"role"` // owner, admin, member, viewer
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// OrgSigningKey stores per-org RSA signing keys.
+type OrgSigningKey struct {
+	ID             string     `json:"id"`
+	OrganizationID string     `json:"organization_id"`
+	KeyID          string     `json:"key_id"`
+	PublicKeyPEM   string     `json:"public_key_pem"`
+	PrivateKeyPEM  string     `json:"private_key_pem"`
+	Algorithm      string     `json:"algorithm"`
+	IsActive       bool       `json:"is_active"`
+	CreatedAt      time.Time  `json:"created_at"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
 }
 
 type WebhookDelivery struct {
@@ -913,3 +938,167 @@ func (db *DB) ListAgentsPaginated(search, status, orgID, sort string, page, limi
 }
 
 // RunMigrations is now in migrate.go (applies SQL migrations for Postgres, no-op for JSON).
+
+// ── Org-scoped webhook methods ───────────────────────────────────────
+
+func (db *DB) ListWebhooksByOrganization(orgID string) ([]WebhookConfig, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var result []WebhookConfig
+	for _, wh := range db.WebhookConfigs {
+		if wh.OrganizationID == orgID {
+			result = append(result, wh)
+		}
+	}
+	return result, nil
+}
+
+func (db *DB) ListActiveWebhooksForEventByOrg(event, orgID string) ([]WebhookConfig, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var result []WebhookConfig
+	for _, wh := range db.WebhookConfigs {
+		if !wh.IsActive {
+			continue
+		}
+		if orgID != "" && wh.OrganizationID != orgID {
+			continue
+		}
+		for _, e := range wh.Events {
+			if e == event || e == "*" {
+				result = append(result, wh)
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
+// ── OrgMember methods ────────────────────────────────────────────────
+
+func (db *DB) CreateOrgMember(member OrgMember) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.OrgMembers = append(db.OrgMembers, member)
+	return db.Save()
+}
+
+func (db *DB) GetOrgMember(userID, orgID string) (*OrgMember, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.OrgMembers {
+		if db.OrgMembers[i].UserID == userID && db.OrgMembers[i].OrganizationID == orgID {
+			return &db.OrgMembers[i], nil
+		}
+	}
+	return nil, fmt.Errorf("org member not found")
+}
+
+func (db *DB) ListOrgMembersByOrg(orgID string) ([]OrgMember, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var result []OrgMember
+	for _, m := range db.OrgMembers {
+		if m.OrganizationID == orgID {
+			result = append(result, m)
+		}
+	}
+	return result, nil
+}
+
+func (db *DB) ListOrgMembersByUser(userID string) ([]OrgMember, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var result []OrgMember
+	for _, m := range db.OrgMembers {
+		if m.UserID == userID {
+			result = append(result, m)
+		}
+	}
+	return result, nil
+}
+
+func (db *DB) DeleteOrgMember(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.OrgMembers {
+		if db.OrgMembers[i].ID == id {
+			db.OrgMembers = append(db.OrgMembers[:i], db.OrgMembers[i+1:]...)
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("org member not found")
+}
+
+func (db *DB) UpdateOrgMember(id string, updateFn func(*OrgMember) error) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.OrgMembers {
+		if db.OrgMembers[i].ID == id {
+			if err := updateFn(&db.OrgMembers[i]); err != nil {
+				return err
+			}
+			db.OrgMembers[i].UpdatedAt = time.Now()
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("org member not found")
+}
+
+// ── OrgSigningKey methods ────────────────────────────────────────────
+
+func (db *DB) CreateOrgSigningKey(key OrgSigningKey) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.OrgSigningKeys = append(db.OrgSigningKeys, key)
+	return db.Save()
+}
+
+func (db *DB) GetActiveOrgSigningKey(orgID string) (*OrgSigningKey, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.OrgSigningKeys {
+		k := &db.OrgSigningKeys[i]
+		if k.OrganizationID == orgID && k.IsActive {
+			if k.ExpiresAt != nil && time.Now().After(*k.ExpiresAt) {
+				continue
+			}
+			return k, nil
+		}
+	}
+	return nil, fmt.Errorf("no active signing key for org %s", orgID)
+}
+
+func (db *DB) ListOrgSigningKeys(orgID string) ([]OrgSigningKey, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var result []OrgSigningKey
+	for _, k := range db.OrgSigningKeys {
+		if k.OrganizationID == orgID {
+			result = append(result, k)
+		}
+	}
+	return result, nil
+}
+
+func (db *DB) DeleteOrgSigningKey(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.OrgSigningKeys {
+		if db.OrgSigningKeys[i].ID == id {
+			db.OrgSigningKeys = append(db.OrgSigningKeys[:i], db.OrgSigningKeys[i+1:]...)
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("signing key not found")
+}

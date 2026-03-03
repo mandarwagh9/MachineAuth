@@ -73,9 +73,11 @@ type Database interface {
 	CreateWebhook(webhook WebhookConfig) error
 	GetWebhook(id string) (*WebhookConfig, error)
 	ListWebhooks() ([]WebhookConfig, error)
+	ListWebhooksByOrganization(orgID string) ([]WebhookConfig, error)
 	UpdateWebhook(id string, updateFn func(*WebhookConfig) error) error
 	DeleteWebhook(id string) error
 	ListActiveWebhooksForEvent(event string) ([]WebhookConfig, error)
+	ListActiveWebhooksForEventByOrg(event, orgID string) ([]WebhookConfig, error)
 
 	// ── Webhook Deliveries ─────────────────────────────────────────────
 
@@ -91,4 +93,20 @@ type Database interface {
 	GetAdminUserByEmail(email string) (*AdminUser, error)
 	GetAdminUserByID(id string) (*AdminUser, error)
 	ListAdminUsers() ([]AdminUser, error)
+
+	// ── Org Members ────────────────────────────────────────────────────
+
+	CreateOrgMember(member OrgMember) error
+	GetOrgMember(userID, orgID string) (*OrgMember, error)
+	ListOrgMembersByOrg(orgID string) ([]OrgMember, error)
+	ListOrgMembersByUser(userID string) ([]OrgMember, error)
+	DeleteOrgMember(id string) error
+	UpdateOrgMember(id string, updateFn func(*OrgMember) error) error
+
+	// ── Org Signing Keys ───────────────────────────────────────────────
+
+	CreateOrgSigningKey(key OrgSigningKey) error
+	GetActiveOrgSigningKey(orgID string) (*OrgSigningKey, error)
+	ListOrgSigningKeys(orgID string) ([]OrgSigningKey, error)
+	DeleteOrgSigningKey(id string) error
 }

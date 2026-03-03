@@ -1095,3 +1095,240 @@ func (p *PostgresDB) ListAdminUsers() ([]AdminUser, error) {
 	}
 	return users, nil
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Org-scoped Webhook Queries
+// ═══════════════════════════════════════════════════════════════════════
+
+func (p *PostgresDB) ListWebhooksByOrganization(orgID string) ([]WebhookConfig, error) {
+	rows, err := p.pool.Query(context.Background(),
+		`SELECT `+webhookCols+` FROM webhook_configs WHERE organization_id = $1 ORDER BY created_at DESC`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var webhooks []WebhookConfig
+	for rows.Next() {
+		w, err := scanWebhook(rows)
+		if err != nil {
+			return nil, err
+		}
+		webhooks = append(webhooks, *w)
+	}
+	if webhooks == nil {
+		webhooks = []WebhookConfig{}
+	}
+	return webhooks, nil
+}
+
+func (p *PostgresDB) ListActiveWebhooksForEventByOrg(event, orgID string) ([]WebhookConfig, error) {
+	query := `SELECT ` + webhookCols + ` FROM webhook_configs
+		WHERE is_active = true AND ($1 = ANY(events) OR '*' = ANY(events))`
+	args := []interface{}{event}
+
+	if orgID != "" {
+		query += ` AND organization_id = $2`
+		args = append(args, orgID)
+	}
+
+	rows, err := p.pool.Query(context.Background(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []WebhookConfig
+	for rows.Next() {
+		w, err := scanWebhook(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *w)
+	}
+	return result, nil
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Org Members
+// ═══════════════════════════════════════════════════════════════════════
+
+const orgMemberCols = `id::text, user_id::text, organization_id, role, created_at, updated_at`
+
+func scanOrgMember(row pgx.Row) (*OrgMember, error) {
+	var m OrgMember
+	err := row.Scan(&m.ID, &m.UserID, &m.OrganizationID, &m.Role, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (p *PostgresDB) CreateOrgMember(member OrgMember) error {
+	_, err := p.pool.Exec(context.Background(), `INSERT INTO org_members
+		(id, user_id, organization_id, role, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6)`,
+		member.ID, member.UserID, member.OrganizationID, member.Role,
+		member.CreatedAt, member.UpdatedAt,
+	)
+	return err
+}
+
+func (p *PostgresDB) GetOrgMember(userID, orgID string) (*OrgMember, error) {
+	row := p.pool.QueryRow(context.Background(),
+		`SELECT `+orgMemberCols+` FROM org_members WHERE user_id::text = $1 AND organization_id = $2`,
+		userID, orgID)
+	m, err := scanOrgMember(row)
+	if err != nil {
+		return nil, fmt.Errorf("org member not found")
+	}
+	return m, nil
+}
+
+func (p *PostgresDB) ListOrgMembersByOrg(orgID string) ([]OrgMember, error) {
+	rows, err := p.pool.Query(context.Background(),
+		`SELECT `+orgMemberCols+` FROM org_members WHERE organization_id = $1 ORDER BY created_at ASC`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []OrgMember
+	for rows.Next() {
+		m, err := scanOrgMember(rows)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, *m)
+	}
+	return members, nil
+}
+
+func (p *PostgresDB) ListOrgMembersByUser(userID string) ([]OrgMember, error) {
+	rows, err := p.pool.Query(context.Background(),
+		`SELECT `+orgMemberCols+` FROM org_members WHERE user_id::text = $1 ORDER BY created_at ASC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []OrgMember
+	for rows.Next() {
+		m, err := scanOrgMember(rows)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, *m)
+	}
+	return members, nil
+}
+
+func (p *PostgresDB) DeleteOrgMember(id string) error {
+	tag, err := p.pool.Exec(context.Background(),
+		`DELETE FROM org_members WHERE id::text = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("org member not found")
+	}
+	return nil
+}
+
+func (p *PostgresDB) UpdateOrgMember(id string, updateFn func(*OrgMember) error) error {
+	ctx := context.Background()
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	row := tx.QueryRow(ctx, `SELECT `+orgMemberCols+` FROM org_members WHERE id::text = $1 FOR UPDATE`, id)
+	m, err := scanOrgMember(row)
+	if err != nil {
+		return fmt.Errorf("org member not found")
+	}
+	if err := updateFn(m); err != nil {
+		return err
+	}
+	m.UpdatedAt = time.Now()
+	_, err = tx.Exec(ctx, `UPDATE org_members SET role=$2, updated_at=$3 WHERE id::text = $1`,
+		id, m.Role, m.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("update org member: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Org Signing Keys
+// ═══════════════════════════════════════════════════════════════════════
+
+const orgSigningKeyCols = `id::text, organization_id, key_id, public_key_pem, private_key_pem,
+	algorithm, is_active, created_at, expires_at`
+
+func scanOrgSigningKey(row pgx.Row) (*OrgSigningKey, error) {
+	var k OrgSigningKey
+	err := row.Scan(&k.ID, &k.OrganizationID, &k.KeyID, &k.PublicKeyPEM, &k.PrivateKeyPEM,
+		&k.Algorithm, &k.IsActive, &k.CreatedAt, &k.ExpiresAt)
+	if err != nil {
+		return nil, err
+	}
+	return &k, nil
+}
+
+func (p *PostgresDB) CreateOrgSigningKey(key OrgSigningKey) error {
+	_, err := p.pool.Exec(context.Background(), `INSERT INTO org_signing_keys
+		(id, organization_id, key_id, public_key_pem, private_key_pem,
+		 algorithm, is_active, created_at, expires_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		key.ID, key.OrganizationID, key.KeyID, key.PublicKeyPEM, key.PrivateKeyPEM,
+		key.Algorithm, key.IsActive, key.CreatedAt, key.ExpiresAt,
+	)
+	return err
+}
+
+func (p *PostgresDB) GetActiveOrgSigningKey(orgID string) (*OrgSigningKey, error) {
+	row := p.pool.QueryRow(context.Background(),
+		`SELECT `+orgSigningKeyCols+` FROM org_signing_keys
+		 WHERE organization_id = $1 AND is_active = true
+		   AND (expires_at IS NULL OR expires_at > NOW())
+		 ORDER BY created_at DESC LIMIT 1`, orgID)
+	k, err := scanOrgSigningKey(row)
+	if err != nil {
+		return nil, fmt.Errorf("no active signing key for org %s", orgID)
+	}
+	return k, nil
+}
+
+func (p *PostgresDB) ListOrgSigningKeys(orgID string) ([]OrgSigningKey, error) {
+	rows, err := p.pool.Query(context.Background(),
+		`SELECT `+orgSigningKeyCols+` FROM org_signing_keys
+		 WHERE organization_id = $1 ORDER BY created_at DESC`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []OrgSigningKey
+	for rows.Next() {
+		k, err := scanOrgSigningKey(rows)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, *k)
+	}
+	return keys, nil
+}
+
+func (p *PostgresDB) DeleteOrgSigningKey(id string) error {
+	tag, err := p.pool.Exec(context.Background(),
+		`DELETE FROM org_signing_keys WHERE id::text = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("signing key not found")
+	}
+	return nil
+}
