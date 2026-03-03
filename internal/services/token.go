@@ -58,6 +58,16 @@ func NewTokenService(cfg *config.Config, database *db.DB) (*TokenService, error)
 	}, nil
 }
 
+// PrivateKey returns the RSA private key used for signing tokens.
+func (s *TokenService) PrivateKey() *rsa.PrivateKey {
+	return s.privateKey
+}
+
+// KeyID returns the JWT key ID (kid).
+func (s *TokenService) KeyID() string {
+	return s.keyID
+}
+
 func loadOrGenerateKey(keyPath string) (*rsa.PrivateKey, error) {
 	privateKeyPath := filepath.Join(keyPath, "jwt-private.pem")
 	publicKeyPath := filepath.Join(keyPath, "jwt-public.pem")
@@ -405,7 +415,7 @@ func (s *TokenService) IntrospectToken(tokenString string) (*models.IntrospectRe
 	scope, _ := claims["scope"].([]interface{})
 	var scopeStr string
 	if len(scope) > 0 {
-			scopeStr = strings.Join(toStringSlice(scope), " ")
+		scopeStr = strings.Join(toStringSlice(scope), " ")
 	}
 
 	sub, _ := claims["sub"].(string)

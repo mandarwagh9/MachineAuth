@@ -57,9 +57,13 @@ func (s *AgentService) Create(req models.CreateAgentRequest) (*models.CreateAgen
 		OrganizationID:   req.OrganizationID,
 		TeamID:           teamID,
 		Name:             req.Name,
+		Description:      req.Description,
+		Tags:             req.Tags,
+		Metadata:         req.Metadata,
 		ClientID:         clientID,
 		ClientSecretHash: string(secretHash),
 		Scopes:           scopes,
+		Status:           string(models.AgentStatusActive),
 		IsActive:         true,
 		CreatedAt:        now,
 		UpdatedAt:        now,
@@ -82,8 +86,12 @@ func (s *AgentService) Create(req models.CreateAgentRequest) (*models.CreateAgen
 			OrganizationID: req.OrganizationID,
 			TeamID:         teamUUID,
 			Name:           req.Name,
+			Description:    req.Description,
+			Tags:           req.Tags,
+			Metadata:       req.Metadata,
 			ClientID:       clientID,
 			Scopes:         scopes,
+			Status:         models.AgentStatusActive,
 			IsActive:       true,
 			CreatedAt:      now,
 			UpdatedAt:      now,
@@ -295,6 +303,7 @@ func (s *AgentService) GetUsage(agentID uuid.UUID) (*models.AgentUsage, error) {
 func (s *AgentService) Deactivate(id uuid.UUID) error {
 	return s.db.UpdateAgent(id.String(), func(agent *db.Agent) error {
 		agent.IsActive = false
+		agent.Status = string(models.AgentStatusInactive)
 		return nil
 	})
 }
@@ -302,8 +311,53 @@ func (s *AgentService) Deactivate(id uuid.UUID) error {
 func (s *AgentService) Reactivate(id uuid.UUID) error {
 	return s.db.UpdateAgent(id.String(), func(agent *db.Agent) error {
 		agent.IsActive = true
+		agent.Status = string(models.AgentStatusActive)
 		return nil
 	})
+}
+
+func (s *AgentService) Update(id uuid.UUID, req models.UpdateAgentRequest) (*models.Agent, error) {
+	err := s.db.UpdateAgent(id.String(), func(agent *db.Agent) error {
+		if req.Name != nil {
+			agent.Name = *req.Name
+		}
+		if req.Description != nil {
+			agent.Description = *req.Description
+		}
+		if req.Tags != nil {
+			agent.Tags = req.Tags
+		}
+		if req.Metadata != nil {
+			agent.Metadata = req.Metadata
+		}
+		if req.Scopes != nil {
+			agent.Scopes = req.Scopes
+		}
+		if req.Status != nil {
+			agent.Status = string(*req.Status)
+			agent.IsActive = *req.Status == models.AgentStatusActive
+		}
+		if req.ExpiresAt != nil {
+			agent.ExpiresAt = req.ExpiresAt
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update agent: %w", err)
+	}
+	return s.GetByID(id)
+}
+
+func (s *AgentService) ListPaginated(params models.PaginationParams) ([]models.Agent, int, error) {
+	agents, total, err := s.db.ListAgentsPaginated(params.Search, params.Status, params.OrgID, params.Sort, params.Page, params.Limit)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list agents: %w", err)
+	}
+	result := make([]models.Agent, len(agents))
+	for i, a := range agents {
+		result[i] = *toModelAgent(&a)
+	}
+	return result, total, nil
 }
 
 func toModelAgent(a *db.Agent) *models.Agent {
@@ -313,15 +367,28 @@ func toModelAgent(a *db.Agent) *models.Agent {
 		teamUUID = &tu
 	}
 
+	status := models.AgentStatus(a.Status)
+	if status == "" {
+		if a.IsActive {
+			status = models.AgentStatusActive
+		} else {
+			status = models.AgentStatusInactive
+		}
+	}
+
 	return &models.Agent{
 		ID:                uuid.MustParse(a.ID),
 		OrganizationID:    a.OrganizationID,
 		TeamID:            teamUUID,
 		Name:              a.Name,
+		Description:       a.Description,
+		Tags:              a.Tags,
+		Metadata:          a.Metadata,
 		ClientID:          a.ClientID,
 		ClientSecretHash:  a.ClientSecretHash,
 		Scopes:            a.Scopes,
 		PublicKey:         a.PublicKey,
+		Status:            status,
 		IsActive:          a.IsActive,
 		CreatedAt:         a.CreatedAt,
 		UpdatedAt:         a.UpdatedAt,

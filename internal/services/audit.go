@@ -68,6 +68,16 @@ func (s *AuditService) LogAgentDeleted(agentID uuid.UUID, ipAddress, userAgent s
 	return err
 }
 
+func (s *AuditService) LogAgentUpdated(agentID uuid.UUID, ipAddress, userAgent string) error {
+	err := s.Log(EventAgentUpdated, &agentID, ipAddress, userAgent)
+	s.triggerWebhook(EventAgentUpdated, map[string]interface{}{
+		"event":    EventAgentUpdated,
+		"agent_id": agentID.String(),
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+	return err
+}
+
 func (s *AuditService) LogCredentialsRotated(agentID uuid.UUID, ipAddress, userAgent string) error {
 	err := s.Log(EventAgentCredentialsRotated, &agentID, ipAddress, userAgent)
 	s.triggerWebhook(EventAgentCredentialsRotated, map[string]interface{}{
@@ -110,4 +120,29 @@ func (s *AuditService) LogTokenValidation(agentID *uuid.UUID, success bool, ipAd
 // LogWebhook logs a webhook-related event and optionally triggers webhooks
 func (s *AuditService) LogWebhook(action string, webhookID uuid.UUID, ipAddress, userAgent string) error {
 	return s.Log(action, nil, ipAddress, userAgent)
+}
+
+// ListAuditLogs queries the audit log with filtering and pagination.
+func (s *AuditService) ListAuditLogs(query models.AuditLogQuery) ([]models.AuditLog, int, error) {
+	dbLogs, total, err := s.jsonDB.ListAuditLogs(query.AgentID, query.Action, query.IPAddress, query.From, query.To, query.Page, query.Limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]models.AuditLog, len(dbLogs))
+	for i, l := range dbLogs {
+		result[i] = models.AuditLog{
+			ID:        uuid.MustParse(l.ID),
+			Action:    l.Action,
+			IPAddress: l.IPAddress,
+			UserAgent: l.UserAgent,
+			Details:   l.Details,
+			CreatedAt: l.CreatedAt,
+		}
+		if l.AgentID != nil {
+			aid := uuid.MustParse(*l.AgentID)
+			result[i].AgentID = &aid
+		}
+	}
+	return result, total, nil
 }
