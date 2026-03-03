@@ -273,5 +273,3 @@ func (h *WebhookHandler) getDelivery(w http.ResponseWriter, r *http.Request, del
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(models.WebhookDeliveryResponse{Delivery: *delivery})
 }
-
-

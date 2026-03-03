@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -44,6 +45,56 @@ func (h *AgentsHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(models.AgentsListResponse{Agents: agents})
+}
+
+// ListPaginated returns agents with pagination, search, and filtering.
+func (h *AgentsHandler) ListPaginated(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	q := r.URL.Query()
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	params := models.PaginationParams{
+		Page:   page,
+		Limit:  limit,
+		Search: q.Get("q"),
+		Status: q.Get("status"),
+		OrgID:  q.Get("org_id"),
+		Sort:   q.Get("sort"),
+	}
+
+	agents, total, err := h.agentService.ListPaginated(params)
+	if err != nil {
+		log.Printf("failed to list agents: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	totalPages := total / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.AgentsListResponse{
+		Agents: agents,
+		Pagination: &models.Pagination{
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: totalPages,
+		},
+	})
 }
 
 func (h *AgentsHandler) CreateInOrganization(w http.ResponseWriter, r *http.Request, orgID string) {
@@ -101,6 +152,8 @@ func (h *AgentsHandler) HandleAgent(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		h.getAgent(w, r, id)
+	case http.MethodPut, http.MethodPatch:
+		h.updateAgent(w, r, id)
 	case http.MethodDelete:
 		h.deleteAgent(w, r, id)
 	case http.MethodPost:
@@ -117,6 +170,33 @@ func (h *AgentsHandler) getAgent(w http.ResponseWriter, r *http.Request, id uuid
 		http.Error(w, "agent not found", http.StatusNotFound)
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.AgentResponse{Agent: *agent})
+}
+
+func (h *AgentsHandler) updateAgent(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	var req models.UpdateAgentRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	agent, err := h.agentService.Update(id, req)
+	if err != nil {
+		log.Printf("failed to update agent %s: %v", id, err)
+		http.Error(w, "failed to update agent", http.StatusInternalServerError)
+		return
+	}
+
+	h.auditService.LogAgentUpdated(id, r.RemoteAddr, r.UserAgent())
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(models.AgentResponse{Agent: *agent})

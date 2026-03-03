@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"machineauth/internal/config"
 	"machineauth/internal/models"
@@ -15,15 +17,78 @@ import (
 type AuthHandler struct {
 	agentService *services.AgentService
 	tokenService *services.TokenService
+	adminService *services.AdminService
 	cfg          *config.Config
+
+	// Brute-force tracking: map[key] -> {failures, lockedUntil}
+	bfMu    sync.Mutex
+	bfState map[string]*bruteForceEntry
 }
+
+type bruteForceEntry struct {
+	failures    int
+	lockedUntil time.Time
+}
+
+const (
+	maxFailedAttempts = 5
+	lockoutDuration   = 5 * time.Minute
+)
 
 func NewAuthHandler(agentService *services.AgentService, tokenService *services.TokenService, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
 		agentService: agentService,
 		tokenService: tokenService,
 		cfg:          cfg,
+		bfState:      make(map[string]*bruteForceEntry),
 	}
+}
+
+// SetAdminService sets the admin service (called after construction to
+// break the initialization ordering dependency).
+func (h *AuthHandler) SetAdminService(adminService *services.AdminService) {
+	h.adminService = adminService
+}
+
+// checkBruteForce returns true if the key is currently locked out.
+func (h *AuthHandler) checkBruteForce(key string) bool {
+	h.bfMu.Lock()
+	defer h.bfMu.Unlock()
+	entry, ok := h.bfState[key]
+	if !ok {
+		return false
+	}
+	if time.Now().Before(entry.lockedUntil) {
+		return true
+	}
+	if time.Now().After(entry.lockedUntil) && entry.failures >= maxFailedAttempts {
+		// Lockout expired — reset.
+		delete(h.bfState, key)
+	}
+	return false
+}
+
+// recordFailure increments the failure counter for the given key.
+func (h *AuthHandler) recordFailure(key string) {
+	h.bfMu.Lock()
+	defer h.bfMu.Unlock()
+	entry, ok := h.bfState[key]
+	if !ok {
+		entry = &bruteForceEntry{}
+		h.bfState[key] = entry
+	}
+	entry.failures++
+	if entry.failures >= maxFailedAttempts {
+		entry.lockedUntil = time.Now().Add(lockoutDuration)
+		log.Printf("brute-force lockout: key=%s locked for %v", key, lockoutDuration)
+	}
+}
+
+// recordSuccess clears the brute-force counter.
+func (h *AuthHandler) recordSuccess(key string) {
+	h.bfMu.Lock()
+	defer h.bfMu.Unlock()
+	delete(h.bfState, key)
 }
 
 func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
@@ -78,12 +143,21 @@ func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Brute-force protection.
+		if h.checkBruteForce("client:" + tokenReq.ClientID) {
+			w.Header().Set("Retry-After", "300")
+			writeJSONError(w, http.StatusTooManyRequests, "too_many_requests", "too many failed attempts, try again later")
+			return
+		}
+
 		agent, err = h.agentService.ValidateCredentials(tokenReq.ClientID, tokenReq.ClientSecret)
 		if err != nil {
+			h.recordFailure("client:" + tokenReq.ClientID)
 			log.Printf("failed to validate credentials for client_id=%s: %v", tokenReq.ClientID, err)
 			h.writeError(w, "invalid_client", "invalid client credentials")
 			return
 		}
+		h.recordSuccess("client:" + tokenReq.ClientID)
 	} else if tokenReq.GrantType == "refresh_token" {
 		agent, err = h.tokenService.ValidateRefreshToken(tokenReq.RefreshToken)
 		if err != nil {
@@ -302,44 +376,68 @@ func (h *AuthHandler) writeError(w http.ResponseWriter, errCode, description str
 	writeJSONError(w, http.StatusBadRequest, errCode, description)
 }
 
-type AdminLoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type AdminLoginResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-}
-
 func (h *AuthHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	var req AdminLoginRequest
+	var req models.AdminLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeAdminError(w, "invalid_request", "invalid request body")
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
 	}
 
-	if req.Username == h.cfg.AdminEmail && req.Password == h.cfg.AdminPassword {
+	// Support both "email" and legacy "username" field.
+	email := req.Email
+	if email == "" {
+		email = req.Username
+	}
+
+	if email == "" || req.Password == "" {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "email and password are required")
+		return
+	}
+
+	// Brute-force protection.
+	if h.checkBruteForce("admin:" + email) {
+		w.Header().Set("Retry-After", "300")
+		writeJSONError(w, http.StatusTooManyRequests, "too_many_requests", "too many failed attempts, try again later")
+		return
+	}
+
+	// JWT-based admin auth.
+	if h.adminService != nil {
+		resp, err := h.adminService.Authenticate(email, req.Password)
+		if err != nil {
+			h.recordFailure("admin:" + email)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(models.AdminTokenResponse{
+				Success: false,
+			})
+			return
+		}
+		h.recordSuccess("admin:" + email)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(AdminLoginResponse{
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Legacy fallback (no admin service configured).
+	if email == h.cfg.AdminEmail && req.Password == h.cfg.AdminPassword {
+		h.recordSuccess("admin:" + email)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(models.AdminTokenResponse{
 			Success: true,
 		})
 		return
 	}
 
+	h.recordFailure("admin:" + email)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	json.NewEncoder(w).Encode(AdminLoginResponse{
+	json.NewEncoder(w).Encode(models.AdminTokenResponse{
 		Success: false,
-		Message: "invalid credentials",
 	})
-}
-
-func (h *AuthHandler) writeAdminError(w http.ResponseWriter, errCode, description string) {
-	writeJSONError(w, http.StatusBadRequest, errCode, description)
 }
