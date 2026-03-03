@@ -151,9 +151,9 @@ npm run dev
 
 Open `http://localhost:3000` — proxies API calls to the Go backend on port 8081.
 
-**Default credentials:** `admin` / `admin`
+**Default credentials:** `admin@example.com` / `changeme`
 
-> ⚠️ Change admin credentials via `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars before deploying.
+> ⚠️ Change `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars before deploying to production.
 
 ### Production Build
 

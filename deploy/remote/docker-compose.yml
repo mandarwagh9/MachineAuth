@@ -36,8 +36,8 @@ services:
       JWT_ISSUER: "https://auth.writesomething.fun"
       ALLOWED_ORIGINS: "https://authadmin.writesomething.fun,https://auth.writesomething.fun"
       REQUIRE_HTTPS: "true"
-      ADMIN_EMAIL: admin
-      ADMIN_PASSWORD: admin
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: changeme
       WEBHOOK_WORKER_COUNT: 3
       WEBHOOK_MAX_RETRIES: 10
       WEBHOOK_TIMEOUT_SECS: 10

@@ -147,8 +147,8 @@ JWT_ACCESS_TOKEN_EXPIRY=3600
 JWT_ISSUER=https://auth.writesomething.fun
 ALLOWED_ORIGINS=https://authadmin.writesomething.fun,https://auth.writesomething.fun
 REQUIRE_HTTPS=true
-ADMIN_EMAIL=admin
-ADMIN_PASSWORD=admin
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=changeme
 WEBHOOK_WORKER_COUNT=3
 WEBHOOK_MAX_RETRIES=10
 WEBHOOK_TIMEOUT_SECS=10
@@ -372,7 +372,7 @@ echo "  Deployment Complete!"
 echo ""
 echo "  Backend API:  https://auth.writesomething.fun"
 echo "  Admin UI:     https://authadmin.writesomething.fun"
-echo "  Admin Login:  admin / admin"
+echo "  Admin Login:  admin@example.com / changeme"
 echo ""
-echo "  ⚠ Change ADMIN_PASSWORD in ${DEPLOY_DIR}/.env"
+echo "  ⚠ Change ADMIN_EMAIL and ADMIN_PASSWORD in ${DEPLOY_DIR}/.env before production use"
 echo "============================================="

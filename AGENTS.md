@@ -222,7 +222,7 @@ WEBHOOK_TIMEOUT_SECS=10
 
 - Frontend proxies `/api`, `/oauth`, `/.well-known`, `/health`, `/metrics` to `localhost:8081`
 - Use `@/` for absolute imports (maps to `./src/`)
-- Admin credentials: `admin` / `admin` (change before deployment)
+- Admin credentials: `admin@example.com` / `changeme` (change before deployment)
 - Alternate Go entry: `go run server-main.go` (port 8081)
 
 ## Key Conventions
