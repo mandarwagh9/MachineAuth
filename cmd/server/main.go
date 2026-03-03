@@ -71,6 +71,7 @@ func main() {
 	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
 	webhookHandler := handlers.NewWebhookHandler(webhookService, auditService)
 	auditHandler := handlers.NewAuditHandler(auditService)
+	oidcHandler := handlers.NewOIDCHandler(cfg, orgService, agentService, tokenService)
 
 	// Rate limiters.
 	oauthLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{Limit: 30, Window: 60 * time.Second})
@@ -110,7 +111,13 @@ func main() {
 	})
 
 	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/.well-known/jwks.json", tokenService.JWKS)
+
+	// ── OIDC / Well-Known endpoints (public) ──────────────────────────
+	// The HandleWellKnown dispatcher routes based on Host header:
+	// - Global: /.well-known/openid-configuration, /.well-known/jwks.json
+	// - Per-org subdomain: {slug}.auth.domain/.well-known/openid-configuration
+	mux.HandleFunc("/.well-known/openid-configuration", oidcHandler.HandleWellKnown)
+	mux.HandleFunc("/.well-known/jwks.json", oidcHandler.HandleWellKnown)
 
 	// ── OAuth endpoints (public, rate-limited) ─────────────────────────
 
@@ -120,6 +127,7 @@ func main() {
 	mux.Handle("/oauth/introspect", oauthRL(http.HandlerFunc(authHandler.Introspect)))
 	mux.Handle("/oauth/revoke", oauthRL(http.HandlerFunc(authHandler.Revoke)))
 	mux.Handle("/oauth/refresh", oauthRL(http.HandlerFunc(authHandler.Refresh)))
+	mux.Handle("/oauth/userinfo", jwtAuth(http.HandlerFunc(oidcHandler.UserInfo)))
 
 	// ── Admin auth endpoint (public, aggressively rate-limited) ────────
 
@@ -158,12 +166,12 @@ func main() {
 		refreshed, revoked := tokenService.GetMetrics()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"requests":        stats.TotalRequests,
-			"tokens_issued":   stats.TokensIssued,
+			"requests":         stats.TotalRequests,
+			"tokens_issued":    stats.TokensIssued,
 			"tokens_refreshed": refreshed,
-			"tokens_revoked":  revoked,
-			"active_tokens":   stats.ActiveTokens,
-			"total_agents":    stats.TotalAgents,
+			"tokens_revoked":   revoked,
+			"active_tokens":    stats.ActiveTokens,
+			"total_agents":     stats.TotalAgents,
 		})
 	}))
 

@@ -1,7 +1,12 @@
 package services
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,7 +44,53 @@ func (s *OrganizationService) Create(req models.CreateOrganizationRequest) (*mod
 		return nil, fmt.Errorf("failed to create organization: %w", err)
 	}
 
+	// Auto-generate a per-org RSA signing key for OIDC.
+	if err := s.generateOrgSigningKey(org.ID, org.Slug); err != nil {
+		log.Printf("warning: failed to generate signing key for org %s: %v", org.ID, err)
+	}
+
 	return toModelOrganization(org), nil
+}
+
+// generateOrgSigningKey creates a 2048-bit RSA key pair for the given org
+// and stores it in the database. This enables per-org OIDC with isolated signing keys.
+func (s *OrganizationService) generateOrgSigningKey(orgID, orgSlug string) error {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return fmt.Errorf("failed to generate RSA key: %w", err)
+	}
+
+	// Encode private key to PEM.
+	privBlock := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	}
+	privPEM := string(pem.EncodeToMemory(privBlock))
+
+	// Encode public key to PEM.
+	pubBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return fmt.Errorf("failed to encode public key: %w", err)
+	}
+	pubBlock := &pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: pubBytes,
+	}
+	pubPEM := string(pem.EncodeToMemory(pubBlock))
+
+	now := time.Now()
+	key := db.OrgSigningKey{
+		ID:             uuid.New().String(),
+		OrganizationID: orgID,
+		KeyID:          orgSlug + "-key-1",
+		PublicKeyPEM:   pubPEM,
+		PrivateKeyPEM:  privPEM,
+		Algorithm:      "RS256",
+		IsActive:       true,
+		CreatedAt:      now,
+	}
+
+	return s.db.CreateOrgSigningKey(key)
 }
 
 func (s *OrganizationService) GetByID(id string) (*models.Organization, error) {

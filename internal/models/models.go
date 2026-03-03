@@ -126,6 +126,40 @@ type TokenResponse struct {
 	Scope        string `json:"scope,omitempty"`
 	IssuedAt     int64  `json:"issued_at"`
 	RefreshToken string `json:"refresh_token,omitempty"`
+	IDToken      string `json:"id_token,omitempty"`
+}
+
+// OIDCDiscovery represents the OpenID Connect discovery document.
+type OIDCDiscovery struct {
+	Issuer                            string   `json:"issuer"`
+	TokenEndpoint                     string   `json:"token_endpoint"`
+	UserInfoEndpoint                  string   `json:"userinfo_endpoint"`
+	JWKSUri                           string   `json:"jwks_uri"`
+	IntrospectionEndpoint             string   `json:"introspection_endpoint"`
+	RevocationEndpoint                string   `json:"revocation_endpoint"`
+	GrantTypesSupported               []string `json:"grant_types_supported"`
+	ResponseTypesSupported            []string `json:"response_types_supported"`
+	ScopesSupported                   []string `json:"scopes_supported"`
+	SubjectTypesSupported             []string `json:"subject_types_supported"`
+	IDTokenSigningAlgValuesSupported  []string `json:"id_token_signing_alg_values_supported"`
+	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
+	ClaimsSupported                   []string `json:"claims_supported"`
+	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported,omitempty"`
+	ServiceDocumentation              string   `json:"service_documentation,omitempty"`
+}
+
+// UserInfoResponse is the profile returned by GET /oauth/userinfo.
+type UserInfoResponse struct {
+	Sub            string                 `json:"sub"`
+	Name           string                 `json:"name,omitempty"`
+	AgentID        string                 `json:"agent_id"`
+	OrgID          string                 `json:"org_id,omitempty"`
+	TeamID         string                 `json:"team_id,omitempty"`
+	Scopes         []string               `json:"scopes,omitempty"`
+	Status         string                 `json:"status,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt      int64                  `json:"created_at,omitempty"`
+	UpdatedAt      int64                  `json:"updated_at,omitempty"`
 }
 
 type ErrorResponse struct {

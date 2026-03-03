@@ -4,7 +4,7 @@
 
 **Created:** March 3, 2026  
 **Current Version:** 2.12.61  
-**Status:** Wave 1 (Security Hardening) complete, SaaS buildout starting
+**Status:** Layers 0-2 complete (PostgreSQL + Multi-Tenancy + OIDC). Layer 3 (Billing) next.
 
 ---
 
@@ -35,33 +35,33 @@
 
 | Capability | Status | Grade |
 |---|---|---|
-| OAuth2 Core (client_credentials, refresh, revoke, introspect) | Solid | **B+** |
-| JWT/RS256 + JWKS | Working | **C+** |
+| OAuth2 Core (client_credentials, refresh, revoke, introspect) | Solid | **A** |
+| JWT/RS256 + JWKS | Working, per-org keys, OIDC ID tokens | **A** |
 | Agent CRUD + self-service | Working (update, metadata, tags, status added in Wave 1) | **B** |
 | Admin JWT auth | Working (Wave 1 — was plaintext, now JWT-based) | **B+** |
 | All admin routes protected | Working (Wave 1 — was unauthenticated) | **A** |
 | Rate limiting | Working (Wave 1 — IP-based fixed window) | **B** |
 | Security headers | Working (Wave 1 — HSTS, nosniff, etc.) | **A** |
-| Brute-force protection | Working (Wave 1 — 5 failures  5min lockout) | **B+** |
+| Brute-force protection | Working (Wave 1 — 5 failures → 5min lockout) | **B+** |
 | Pagination + filtering | Working (Wave 1 — search, status, org filter) | **B** |
 | Audit log query API | Working (Wave 1 — filter by agent/action/date) | **B** |
-| Webhook system | Comprehensive (HMAC-SHA256, retry, delivery tracking) | **A-** |
+| Webhook system | Comprehensive (HMAC-SHA256, retry, delivery tracking, org-scoped) | **A** |
 | SDKs (TypeScript + Python) | Full API coverage | **A** |
-| Multi-tenancy | Structural only — models exist, no enforcement | **D+** |
+| Multi-tenancy | ✅ Layer 1 — org-scoped queries, API key auth, RBAC, per-org signing keys | **A-** |
 | Billing / plans | `Plan` field exists, never checked | **F** |
-| OIDC compliance | JWKS only, no discovery | **F** |
-| Database | JSON file only, no real Postgres driver | **F** |
+| OIDC compliance | ✅ Layer 2 — Discovery, ID tokens, UserInfo, per-org OIDC, revocation-aware | **A-** |
+| Database | ✅ Layer 0 — PostgreSQL driver + JSON dev fallback | **B+** |
 | Agent framework integrations | None | **F** |
-| Deployment | Single VPS, manual scripts | **D** |
+| Deployment | Single VPS, systemd, Cloudflare tunnel | **C+** |
 
 ### Critical Architecture Gaps
 
-1. **`db.Connect()` always returns JSON DB** — even with a `postgres://` URL, it falls through to JSON. No PostgreSQL driver code exists.
-2. **`RunMigrations()` is a no-op** — returns `nil`.
-3. **All list queries are global** — `ListAgents()`, `ListWebhooks()`, `ListAuditLogs()` return all data across all orgs.
-4. **API keys exist but have no middleware** — `sk_*` keys are in the DB but no handler validates them for auth.
-5. **Per-org signing keys unused** — `Organization.JWTIssuer` and `JWTExpirySecs` fields are stored but ignored in token generation.
-6. **Single RSA key pair** — all tenants share one signing key, stored as PEM on disk.
+1. ~~`db.Connect()` always returns JSON DB`~~ — ✅ **Fixed in Layer 0**: PostgreSQL driver implemented with `pgxpool`.
+2. ~~`RunMigrations()` is a no-op~~ — ✅ **Fixed in Layer 0**: Migration runner with embedded SQL.
+3. ~~All list queries are global~~ — ✅ **Fixed in Layer 1**: All queries org-scoped via middleware.
+4. ~~API keys exist but have no middleware~~ — ✅ **Fixed in Layer 1**: `APIKeyAuth` middleware validates `sk_*` keys.
+5. ~~Per-org signing keys unused~~ — ✅ **Fixed in Layer 2**: Per-org RSA keys auto-generated, used in OIDC.
+6. ~~Single RSA key pair~~ — ✅ **Fixed in Layer 1+2**: Per-org signing keys, per-org JWKS endpoint.
 7. **In-memory everything** — rate limiter, brute-force state, and revoked token list are all in-memory, preventing horizontal scaling.
 8. **Zero references to any AI agent framework** in the entire codebase.
 
@@ -344,17 +344,17 @@ $0.01 per active agent per month above plan limit.
 
 | Dimension | Current Score | Target | Blocking Layer |
 |-----------|:---:|:---:|---|
-| OAuth 2.0 Core | 8/10 | 10/10 | Layer 2 (OIDC) |
-| Agent Identity Management | 8/10 | 10/10 | Layer 1 (multi-tenancy) |
-| Multi-Tenancy | 3/10 | 10/10 | **Layer 0 (Postgres)** |
-| Billing / Plans | 1/10 | 9/10 | Layer 3 |
-| API Keys for External Auth | 3/10 | 9/10 | Layer 1 (middleware) |
+| OAuth 2.0 Core | 9/10 | 10/10 | — (OIDC adds ID tokens, revocation-aware UserInfo) |
+| Agent Identity Management | 9/10 | 10/10 | — (org-scoped, per-org keys) |
+| Multi-Tenancy | 8/10 | 10/10 | Layer 6 (dedicated infra isolation) |
+| Billing / Plans | 1/10 | 9/10 | **Layer 3** |
+| API Keys for External Auth | 7/10 | 9/10 | Layer 3 (plan-gated limits) |
 | SDK Completeness | 6/10 | 10/10 | Layers 4-5 |
 | Documentation | 6/10 | 10/10 | Layer 5 |
-| Deployment / Infra | 2/10 | 9/10 | **Layer 0 (Postgres)**, Layer 6 |
-| OIDC / Federation | 2/10 | 10/10 | Layer 2 |
-| Webhook System | 6/10 | 9/10 | Layer 1 (org scoping) |
-| Agent Framework Integration | 0/10 | 9/10 | Layer 4 |
+| Deployment / Infra | 4/10 | 9/10 | Layer 6 |
+| OIDC / Federation | 8/10 | 10/10 | Layer 7 (external IdP federation) |
+| Webhook System | 8/10 | 9/10 | — (org-scoped, delivery tracking done) |
+| Agent Framework Integration | 0/10 | 9/10 | **Layer 4** |
 
 ---
 
@@ -366,15 +366,18 @@ Key files in the current codebase:
 |---------|------|
 | Server entry + route wiring | `cmd/server/main.go` |
 | Models (Agent, Org, Webhook, etc.) | `internal/models/models.go` |
-| Database layer (JSON, needs Postgres) | `internal/db/db.go` |
+| Database layer (JSON + PostgreSQL) | `internal/db/db.go`, `internal/db/postgres.go` |
+| Database interface | `internal/db/interface.go` |
 | Agent service (CRUD, update, paginate) | `internal/services/agent.go` |
-| Token service (JWT, JWKS, refresh) | `internal/services/token.go` |
+| Token service (JWT, JWKS, refresh, ID tokens) | `internal/services/token.go` |
 | Admin service (JWT sessions) | `internal/services/admin.go` |
+| Organization service (CRUD, signing keys) | `internal/services/organization.go` |
 | Auth handler (login, token, introspect) | `internal/handlers/auth.go` |
 | Agent handler (CRUD, update) | `internal/handlers/agents.go` |
+| OIDC handler (discovery, UserInfo, per-org) | `internal/handlers/oidc.go` |
 | Audit handler (query API) | `internal/handlers/audit.go` |
 | Webhook service + delivery worker | `internal/services/webhook.go`, `webhook_worker.go` |
-| Auth middleware (JWT, Admin, future API key) | `internal/middleware/auth.go` |
+| Auth middleware (JWT, Admin, APIKey, RBAC) | `internal/middleware/auth.go` |
 | Security middleware (rate limit, headers) | `internal/middleware/security.go` |
 | Config | `internal/config/config.go` |
 | TypeScript SDK | `sdk/typescript/src/index.ts` |

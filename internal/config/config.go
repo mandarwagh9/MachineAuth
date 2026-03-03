@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Port                int
 	Env                 string
+	BaseURL             string
 	DatabaseURL         string
 	JWTSigningAlgorithm string
 	JWTKeyID            string
@@ -32,6 +33,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Port:                getEnvInt("PORT", 8080),
 		Env:                 getEnv("ENV", "development"),
+		BaseURL:             getEnv("BASE_URL", "http://localhost:8080"),
 		DatabaseURL:         getEnv("DATABASE_URL", "json:machineauth.json"),
 		JWTSigningAlgorithm: getEnv("JWT_SIGNING_ALGORITHM", "RS256"),
 		JWTKeyID:            getEnv("JWT_KEY_ID", "key-1"),

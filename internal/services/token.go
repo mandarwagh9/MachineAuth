@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -159,17 +160,32 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 
 	TokensIssued.Inc()
 
-	return &models.TokenResponse{
+	resp := &models.TokenResponse{
 		AccessToken: tokenString,
 		TokenType:   "Bearer",
 		ExpiresIn:   s.tokenExpirySecs,
 		Scope:       strings.Join(scopes, " "),
 		IssuedAt:    now.Unix(),
-	}, nil
+	}
+
+	// If "openid" scope was requested and granted, generate an ID token.
+	if containsScope(scopes, "openid") {
+		idToken, err := s.generateIDToken(agent, tokenString, scopes, now)
+		if err != nil {
+			// Log but don't fail the entire request — access token is still valid.
+			fmt.Printf("warning: failed to generate id_token: %v\n", err)
+		} else {
+			resp.IDToken = idToken
+		}
+	}
+
+	return resp, nil
 }
 
 func (s *TokenService) JWKS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	jwks := models.JWKS{
 		Keys: []models.JWK{
@@ -200,6 +216,11 @@ func (s *TokenService) ValidateToken(tokenString string) (jwt.MapClaims, error) 
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		// Check token revocation — ensures endpoints like /oauth/userinfo
+		// reject tokens that have been revoked via /oauth/revoke.
+		if jti, _ := claims["jti"].(string); jti != "" && s.db.IsTokenRevoked(jti) {
+			return nil, fmt.Errorf("token has been revoked")
+		}
 		return claims, nil
 	}
 
@@ -447,6 +468,100 @@ func (s *TokenService) RevokeAccessToken(jti string) error {
 func (s *TokenService) GetMetrics() (int64, int64) {
 	metrics := s.db.GetMetrics()
 	return metrics.TokensRefreshed, metrics.TokensRevoked
+}
+
+// generateIDToken creates an OIDC ID token JWT for the given agent.
+// The at_hash claim is computed per OIDC Core §3.1.3.6.
+func (s *TokenService) generateIDToken(agent *models.Agent, accessToken string, scopes []string, now time.Time) (string, error) {
+	// Compute at_hash: left half of SHA-256 of the access token, base64url-encoded.
+	atHash := computeAtHash(accessToken)
+
+	var teamIDStr string
+	if agent.TeamID != nil {
+		teamIDStr = agent.TeamID.String()
+	}
+
+	claims := jwt.MapClaims{
+		"iss":       s.cfg.JWTIssuer,
+		"sub":       agent.ClientID,
+		"aud":       agent.ClientID, // OIDC: audience is the client_id
+		"iat":       now.Unix(),
+		"exp":       now.Add(s.cfg.GetTokenExpiry()).Unix(),
+		"auth_time": now.Unix(),
+		"jti":       generateTokenID(),
+		"at_hash":   atHash,
+		"name":      agent.Name,
+		"agent_id":  agent.ID.String(),
+		"org_id":    agent.OrganizationID,
+		"team_id":   teamIDStr,
+		"scope":     scopes,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = s.keyID
+
+	return token.SignedString(s.privateKey)
+}
+
+// computeAtHash computes the OIDC at_hash claim value.
+// Per OIDC Core §3.1.3.6: hash the access token with SHA-256,
+// take the left half, and base64url-encode it.
+func computeAtHash(accessToken string) string {
+	hash := sha256.Sum256([]byte(accessToken))
+	leftHalf := hash[:len(hash)/2] // first 16 bytes of SHA-256
+	return base64.RawURLEncoding.EncodeToString(leftHalf)
+}
+
+// containsScope checks if a scope string is present in the list.
+func containsScope(scopes []string, target string) bool {
+	for _, s := range scopes {
+		if s == target {
+			return true
+		}
+	}
+	return false
+}
+
+// GetOrgJWKS returns a JWKS containing only the signing keys for a specific org.
+func (s *TokenService) GetOrgJWKS(orgID string) (*models.JWKS, error) {
+	dbKeys, err := s.db.ListOrgSigningKeys(orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list org signing keys: %w", err)
+	}
+
+	jwks := models.JWKS{Keys: make([]models.JWK, 0, len(dbKeys))}
+
+	for _, k := range dbKeys {
+		if !k.IsActive {
+			continue
+		}
+
+		block, _ := pem.Decode([]byte(k.PublicKeyPEM))
+		if block == nil {
+			continue
+		}
+
+		pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+		if err != nil {
+			continue
+		}
+
+		rsaPub, ok := pub.(*rsa.PublicKey)
+		if !ok {
+			continue
+		}
+
+		jwks.Keys = append(jwks.Keys, models.JWK{
+			Kty: "RSA",
+			Kid: k.KeyID,
+			Use: "sig",
+			Alg: k.Algorithm,
+			N:   base64.RawURLEncoding.EncodeToString(rsaPub.N.Bytes()),
+			E:   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(rsaPub.E)).Bytes()),
+		})
+	}
+
+	return &jwks, nil
 }
 
 func toStringSlice(ifaces []interface{}) []string {

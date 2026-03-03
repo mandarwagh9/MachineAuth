@@ -60,6 +60,7 @@ export interface TokenResponse {
   expires_in: number;
   refresh_token?: string;
   scope?: string;
+  id_token?: string;
 }
 
 export interface Metrics {
@@ -88,6 +89,10 @@ export interface Organization {
   name: string;
   slug: string;
   owner_email?: string;
+  jwt_issuer?: string;
+  jwt_expiry_secs?: number;
+  allowed_origins?: string;
+  plan?: string;
   created_at: string;
   updated_at?: string;
 }
