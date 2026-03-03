@@ -168,6 +168,62 @@ type AdminUser struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// OrgMember represents a user's membership in an organization with a role.
+type OrgMember struct {
+	ID             uuid.UUID `json:"id"`
+	UserID         uuid.UUID `json:"user_id"`
+	OrganizationID string    `json:"organization_id"`
+	Role           string    `json:"role"` // owner, admin, member, viewer
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// OrgMemberRole constants.
+const (
+	OrgRoleOwner  = "owner"
+	OrgRoleAdmin  = "admin"
+	OrgRoleMember = "member"
+	OrgRoleViewer = "viewer"
+)
+
+// CreateOrgMemberRequest is the payload for adding a user to an org.
+type CreateOrgMemberRequest struct {
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
+// OrgMembersResponse is the list response for org members.
+type OrgMembersResponse struct {
+	Members []OrgMemberWithUser `json:"members"`
+}
+
+// OrgMemberWithUser extends OrgMember with the user's email.
+type OrgMemberWithUser struct {
+	OrgMember
+	Email string `json:"email"`
+}
+
+// SignupRequest is the self-service registration payload.
+type SignupRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	OrgName  string `json:"org_name"`
+	OrgSlug  string `json:"org_slug"`
+}
+
+// OrgSigningKey represents a per-org RSA signing key stored in the database.
+type OrgSigningKey struct {
+	ID             uuid.UUID  `json:"id"`
+	OrganizationID string     `json:"organization_id"`
+	KeyID          string     `json:"key_id"`     // JWT kid
+	PublicKeyPEM   string     `json:"public_key"` // PEM-encoded public key
+	PrivateKeyPEM  string     `json:"-"`          // PEM-encoded private key (never serialized)
+	Algorithm      string     `json:"algorithm"`  // RS256
+	IsActive       bool       `json:"is_active"`
+	CreatedAt      time.Time  `json:"created_at"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
+}
+
 // AdminLoginRequest is the payload for POST /api/auth/login.
 type AdminLoginRequest struct {
 	Email    string `json:"email"`
