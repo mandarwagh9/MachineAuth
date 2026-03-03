@@ -32,6 +32,9 @@ services:
       JWT_ACCESS_TOKEN_EXPIRY: 3600
       ALLOWED_ORIGINS: "*"
       REQUIRE_HTTPS: "false"
+      ADMIN_EMAIL: admin
+      ADMIN_PASSWORD: admin
+      WEBHOOK_WORKER_COUNT: 3
     depends_on:
       postgres:
         condition: service_healthy

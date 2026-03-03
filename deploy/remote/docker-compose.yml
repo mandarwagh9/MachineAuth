@@ -28,7 +28,7 @@ services:
     environment:
       PORT: 8080
       ENV: production
-      DATABASE_URL: "json:/app/machineauth.json"
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/agentauth?sslmode=disable"
       JWT_SIGNING_ALGORITHM: RS256
       JWT_KEY_ID: key-1
       JWT_KEY_PATH: /app/keys

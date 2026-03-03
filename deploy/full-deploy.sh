@@ -14,19 +14,39 @@ DEPLOY_DIR="/opt/machineauth"
 REPO_DIR="/home/mandar/MachineAuth"
 GO_VERSION="1.23.6"
 NODE_VERSION="20"
+PG_DB="agentauth"
+PG_USER="machineauth"
+PG_PASS="machineauth_secret_2025"
 
 # ─── 1. System Dependencies ─────────────────────────────────────────
 
 echo ""
-echo "[1/10] Checking system dependencies..."
+echo "[1/11] Checking system dependencies..."
 
 # Install essential packages
 sudo apt-get update -qq
-sudo apt-get install -y -qq git curl wget nginx > /dev/null 2>&1
+sudo apt-get install -y -qq git curl wget nginx postgresql postgresql-contrib > /dev/null 2>&1
 
-# ─── 2. Install Go ──────────────────────────────────────────────────
+# ─── 2. Setup PostgreSQL ─────────────────────────────────────────────
 
-echo "[2/10] Checking Go installation..."
+echo "[2/11] Setting up PostgreSQL..."
+
+# Ensure PostgreSQL is running
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+
+# Create database and user if they don't exist
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${PG_USER}'" | grep -q 1 || \
+    sudo -u postgres psql -c "CREATE USER ${PG_USER} WITH PASSWORD '${PG_PASS}';"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${PG_DB}'" | grep -q 1 || \
+    sudo -u postgres psql -c "CREATE DATABASE ${PG_DB} OWNER ${PG_USER};"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${PG_DB} TO ${PG_USER};"
+sudo -u postgres psql -d "${PG_DB}" -c "GRANT ALL ON SCHEMA public TO ${PG_USER};"
+echo "  PostgreSQL ready: ${PG_DB} database with ${PG_USER} user"
+
+# ─── 3. Install Go ──────────────────────────────────────────────────
+
+echo "[3/11] Checking Go installation..."
 
 GO_INSTALLED=$(go version 2>/dev/null | grep -oP 'go\K[0-9]+\.[0-9]+' || echo "0.0")
 GO_REQUIRED="1.23"
@@ -48,9 +68,9 @@ else
     echo "  Go ${GO_INSTALLED} already installed (>= ${GO_REQUIRED})"
 fi
 
-# ─── 3. Install Node.js ─────────────────────────────────────────────
+# ─── 4. Install Node.js ─────────────────────────────────────────────
 
-echo "[3/10] Checking Node.js installation..."
+echo "[4/11] Checking Node.js installation..."
 
 if ! command -v node &> /dev/null || [ "$(node -v | grep -oP 'v\K[0-9]+')" -lt "$NODE_VERSION" ]; then
     echo "  Installing Node.js ${NODE_VERSION}..."
@@ -61,9 +81,9 @@ else
     echo "  Node.js $(node -v) already installed"
 fi
 
-# ─── 4. Clone/Pull Latest Code ──────────────────────────────────────
+# ─── 5. Clone/Pull Latest Code ──────────────────────────────────────
 
-echo "[4/10] Getting latest code from GitHub..."
+echo "[5/11] Getting latest code from GitHub..."
 
 if [ -d "$REPO_DIR/.git" ]; then
     cd "$REPO_DIR"
@@ -76,9 +96,9 @@ else
     echo "  Cloned fresh repo"
 fi
 
-# ─── 5. Build Go Backend ────────────────────────────────────────────
+# ─── 6. Build Go Backend ────────────────────────────────────────────
 
-echo "[5/10] Building Go backend..."
+echo "[6/11] Building Go backend..."
 
 cd "$REPO_DIR"
 export PATH=$PATH:/usr/local/go/bin
@@ -86,18 +106,18 @@ go mod download
 CGO_ENABLED=0 go build -o "${DEPLOY_DIR}/machineauth" ./cmd/server
 echo "  Backend binary built: ${DEPLOY_DIR}/machineauth"
 
-# ─── 6. Build React Frontend ────────────────────────────────────────
+# ─── 7. Build React Frontend ────────────────────────────────────────
 
-echo "[6/10] Building React frontend..."
+echo "[7/11] Building React frontend..."
 
 cd "$REPO_DIR/web"
 npm ci --silent 2>/dev/null || npm install --silent
 npm run build
 echo "  Frontend built to: ${REPO_DIR}/web/dist/"
 
-# ─── 7. Set up deploy directory ─────────────────────────────────────
+# ─── 8. Set up deploy directory ─────────────────────────────────────
 
-echo "[7/10] Setting up deployment directory..."
+echo "[8/11] Setting up deployment directory..."
 
 sudo mkdir -p "${DEPLOY_DIR}"
 sudo mkdir -p "${DEPLOY_DIR}/keys"
@@ -108,10 +128,10 @@ sudo chown -R mandar:mandar "${DEPLOY_DIR}"
 cp -r "$REPO_DIR/web/dist" "${DEPLOY_DIR}/web/dist"
 
 # Create backend .env
-cat > "${DEPLOY_DIR}/.env" << 'ENVEOF'
+cat > "${DEPLOY_DIR}/.env" << ENVEOF
 PORT=8080
 ENV=production
-DATABASE_URL=json:/opt/machineauth/machineauth.json
+DATABASE_URL=postgres://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}?sslmode=disable
 JWT_SIGNING_ALGORITHM=RS256
 JWT_KEY_ID=key-1
 JWT_KEY_PATH=/opt/machineauth/keys
@@ -128,9 +148,9 @@ ENVEOF
 
 echo "  Deployment directory ready"
 
-# ─── 8. Configure nginx for Admin UI ────────────────────────────────
+# ─── 9. Configure nginx for Admin UI ────────────────────────────────
 
-echo "[8/10] Configuring nginx for admin UI..."
+echo "[9/11] Configuring nginx for admin UI..."
 
 sudo tee /etc/nginx/sites-available/machineauth-admin > /dev/null << 'NGINXEOF'
 server {
@@ -208,9 +228,9 @@ sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 sudo nginx -t
 echo "  Nginx configured on port 3000"
 
-# ─── 9. Create systemd services ─────────────────────────────────────
+# ─── 10. Create systemd services ───────────────────────────────────
 
-echo "[9/10] Creating systemd services..."
+echo "[10/11] Creating systemd services..."
 
 # Backend service
 sudo tee /etc/systemd/system/machineauth.service > /dev/null << 'SVCEOF'
@@ -235,9 +255,9 @@ SVCEOF
 
 echo "  systemd services created"
 
-# ─── 10. Update Cloudflare Tunnel ───────────────────────────────────
+# ─── 11. Update Cloudflare Tunnel ───────────────────────────────────
 
-echo "[10/10] Updating Cloudflare tunnel config..."
+echo "[11/11] Updating Cloudflare tunnel config..."
 
 CLOUDFLARED_CONFIG="/home/mandar/.cloudflared/config.yml"
 
