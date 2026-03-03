@@ -43,9 +43,10 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password }),
       })
       const data = await res.json()
-      if (data.success) {
+      if (data.success && data.access_token) {
         setIsAuthenticated(true)
         localStorage.setItem('machineauth_auth', 'true')
+        localStorage.setItem('machineauth_token', data.access_token)
         return true
       }
       return false
@@ -57,6 +58,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setIsAuthenticated(false)
     localStorage.removeItem('machineauth_auth')
+    localStorage.removeItem('machineauth_token')
   }
 
   return (

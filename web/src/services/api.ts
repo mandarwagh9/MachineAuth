@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { TokenRequest, TokenResponse, Metrics, HealthCheck, Agent, AgentUsage, CreateOrganizationRequest, CreateTeamRequest, CreateAPIKeyRequest, CreateAPIKeyResponse } from '@/types'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://auth.writesomething.fun'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 const api = axios.create({
   baseURL: API_BASE_URL + '/api',
@@ -9,6 +9,28 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 })
+
+// Attach admin JWT token to every API request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('machineauth_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Auto-logout on 401 responses
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('machineauth_auth')
+      localStorage.removeItem('machineauth_token')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
 
 export const AgentService = {
   list: async () => {
