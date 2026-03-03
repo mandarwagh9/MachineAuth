@@ -141,7 +141,7 @@ func (h *WebhookHandler) createWebhook(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.webhookService.CreateWebhook(req)
 	if err != nil {
 		log.Printf("failed to create webhook: %v", err)
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *WebhookHandler) updateWebhook(w http.ResponseWriter, r *http.Request, i
 	webhook, err := h.webhookService.UpdateWebhook(id, req)
 	if err != nil {
 		log.Printf("failed to update webhook %s: %v", id, err)
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
 
@@ -228,7 +228,7 @@ func (h *WebhookHandler) testWebhook(w http.ResponseWriter, r *http.Request, id 
 	result, err := h.webhookService.TestWebhook(id, req)
 	if err != nil {
 		log.Printf("failed to test webhook %s: %v", id, err)
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
 
@@ -274,11 +274,4 @@ func (h *WebhookHandler) getDelivery(w http.ResponseWriter, r *http.Request, del
 	json.NewEncoder(w).Encode(models.WebhookDeliveryResponse{Delivery: *delivery})
 }
 
-func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(models.ErrorResponse{
-		Error:            "invalid_request",
-		ErrorDescription: message,
-	})
-}
+

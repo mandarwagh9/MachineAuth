@@ -298,13 +298,8 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tokenResp)
 }
 
-func (h *AuthHandler) writeError(w http.ResponseWriter, error, description string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(models.ErrorResponse{
-		Error:            error,
-		ErrorDescription: description,
-	})
+func (h *AuthHandler) writeError(w http.ResponseWriter, errCode, description string) {
+	writeJSONError(w, http.StatusBadRequest, errCode, description)
 }
 
 type AdminLoginRequest struct {
@@ -345,11 +340,6 @@ func (h *AuthHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AuthHandler) writeAdminError(w http.ResponseWriter, error, description string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":   error,
-		"message": description,
-	})
+func (h *AuthHandler) writeAdminError(w http.ResponseWriter, errCode, description string) {
+	writeJSONError(w, http.StatusBadRequest, errCode, description)
 }

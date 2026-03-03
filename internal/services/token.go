@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,14 @@ import (
 	"machineauth/internal/config"
 	"machineauth/internal/db"
 	"machineauth/internal/models"
+)
+
+// RSA key and token configuration constants.
+const (
+	rsaKeyBits         = 2048
+	jwtAudience        = "machineauth-api"
+	refreshTokenExpiry = 7 * 24 * time.Hour
+	revokedTokenExpiry = 24 * time.Hour
 )
 
 type TokenService struct {
@@ -61,7 +70,7 @@ func loadOrGenerateKey(keyPath string) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to create key directory: %w", err)
 	}
 
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA key: %w", err)
 	}
@@ -88,32 +97,21 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("invalid private key format")
 	}
 
-	return x509DecodePrivateKey(block.Bytes)
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
 func savePrivateKey(path string, key *rsa.PrivateKey) error {
-	data := x509EncodePrivateKey(key)
-	block := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: data}
+	block := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}
 	return os.WriteFile(path, pem.EncodeToMemory(block), 0600)
 }
 
 func savePublicKey(path string, key *rsa.PublicKey) error {
-	data := x509EncodePublicKey(key)
+	data, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		return fmt.Errorf("failed to encode public key: %w", err)
+	}
 	block := &pem.Block{Type: "RSA PUBLIC KEY", Bytes: data}
 	return os.WriteFile(path, pem.EncodeToMemory(block), 0644)
-}
-
-func x509EncodePrivateKey(key *rsa.PrivateKey) []byte {
-	return x509.MarshalPKCS1PrivateKey(key)
-}
-
-func x509DecodePrivateKey(data []byte) (*rsa.PrivateKey, error) {
-	return x509.ParsePKCS1PrivateKey(data)
-}
-
-func x509EncodePublicKey(key *rsa.PublicKey) []byte {
-	pubBytes, _ := x509.MarshalPKIXPublicKey(key)
-	return pubBytes
 }
 
 func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string) (*models.TokenResponse, error) {
@@ -134,7 +132,7 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 		"agent_id": agent.ID.String(),
 		"org_id":   agent.OrganizationID,
 		"team_id":  teamIDStr,
-		"aud":      "machineauth-api",
+		"aud":      jwtAudience,
 		"iat":      now.Unix(),
 		"exp":      now.Add(s.cfg.GetTokenExpiry()).Unix(),
 		"scope":    scopes,
@@ -155,7 +153,7 @@ func (s *TokenService) GenerateToken(agent *models.Agent, requestedScope string)
 		AccessToken: tokenString,
 		TokenType:   "Bearer",
 		ExpiresIn:   s.tokenExpirySecs,
-		Scope:       joinScopes(scopes),
+		Scope:       strings.Join(scopes, " "),
 		IssuedAt:    now.Unix(),
 	}, nil
 }
@@ -216,13 +214,9 @@ func parseScope(scope string) []string {
 	if scope == "" {
 		return nil
 	}
-	var scopes []string
-	for _, s := range splitScope(scope) {
-		if s := trimSpace(s); s != "" {
-			scopes = append(scopes, s)
-		}
-	}
-	return scopes
+	// OAuth scopes may be space-separated (RFC 6749) or comma-separated
+	// (common client convenience). Handle both.
+	return strings.FieldsFunc(scope, func(r rune) bool { return r == ' ' || r == ',' })
 }
 
 func filterScopes(allowed []string, requested []string) []string {
@@ -240,48 +234,6 @@ func filterScopes(allowed []string, requested []string) []string {
 	return result
 }
 
-func joinScopes(scopes []string) string {
-	if len(scopes) == 0 {
-		return ""
-	}
-	result := scopes[0]
-	for i := 1; i < len(scopes); i++ {
-		result += " " + scopes[i]
-	}
-	return result
-}
-
-func splitScope(scope string) []string {
-	var result []string
-	current := ""
-	for _, c := range scope {
-		if c == ' ' || c == ',' {
-			if current != "" {
-				result = append(result, current)
-				current = ""
-			}
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		result = append(result, current)
-	}
-	return result
-}
-
-func trimSpace(s string) string {
-	start := 0
-	end := len(s)
-	for start < end && (s[start] == ' ' || s[start] == '\t') {
-		start++
-	}
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') {
-		end--
-	}
-	return s[start:end]
-}
-
 func generateTokenID() string {
 	b := make([]byte, 16)
 	rand.Read(b)
@@ -294,7 +246,7 @@ func GenerateHMACToken(agent *models.Agent, expirySeconds int, hmacSecret []byte
 		"iss":      "machineauth",
 		"sub":      agent.ClientID,
 		"agent_id": agent.ID.String(),
-		"aud":      "machineauth-api",
+		"aud":      jwtAudience,
 		"iat":      now.Unix(),
 		"exp":      now.Add(time.Duration(expirySeconds) * time.Second).Unix(),
 		"scope":    agent.Scopes,
@@ -359,7 +311,7 @@ func (s *TokenService) GenerateRefreshToken(agentID string) (string, error) {
 		return "", fmt.Errorf("failed to hash refresh token: %w", err)
 	}
 
-	expiry := time.Now().Add(7 * 24 * time.Hour)
+	expiry := time.Now().Add(refreshTokenExpiry)
 	rt := db.RefreshToken{
 		ID:        refreshTokenID,
 		AgentID:   agentID,
@@ -453,7 +405,7 @@ func (s *TokenService) IntrospectToken(tokenString string) (*models.IntrospectRe
 	scope, _ := claims["scope"].([]interface{})
 	var scopeStr string
 	if len(scope) > 0 {
-		scopeStr = joinScopes(toStringSlice(scope))
+			scopeStr = strings.Join(toStringSlice(scope), " ")
 	}
 
 	sub, _ := claims["sub"].(string)
@@ -470,7 +422,7 @@ func (s *TokenService) IntrospectToken(tokenString string) (*models.IntrospectRe
 }
 
 func (s *TokenService) RevokeAccessToken(jti string) error {
-	expiry := time.Now().Add(24 * time.Hour)
+	expiry := time.Now().Add(revokedTokenExpiry)
 	rt := db.RevokedToken{
 		JTI:     jti,
 		Expires: expiry,

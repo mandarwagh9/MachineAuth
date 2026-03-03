@@ -2,13 +2,14 @@
 
 ## Project Overview
 
-MachineAuth is a self-hosted AI Agent Authentication SaaS platform providing OAuth 2.0-based authentication for AI agents and machine-to-machine communication.
+MachineAuth is a self-hosted AI Agent Authentication SaaS platform (v2.12.61) providing OAuth 2.0-based authentication for AI agents and machine-to-machine communication.
 
 ## Tech Stack
 
 - **Backend**: Go 1.21+ (module: `machineauth`)
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
 - **Database**: PostgreSQL 15+ (or JSON file for development)
+- **SDKs**: `sdk/typescript` (`@machineauth/sdk`) and `sdk/python` (`machineauth`)
 
 ## Build, Lint, and Test Commands
 
@@ -226,9 +227,14 @@ WEBHOOK_TIMEOUT_SECS=10
 
 ## Key Conventions
 
-- **Handlers**: HTTP request/response handling, validation
-- **Services**: Business logic, orchestration
-- **Models**: API request/response types, JSON serialization
-- **DB**: Database operations, storage abstraction
-- Backend uses `snake_case` JSON (e.g., `client_id`, `expires_at`)
-- Frontend: React hooks for state, `react-hook-form` for forms, `sonner` for toasts
+- **Handlers**: HTTP request/response handling, validation (see [`internal/handlers/agents.go`](internal/handlers/agents.go))
+- **Services**: Business logic, orchestration (see [`internal/services/`](internal/services/))
+- **Models**: API request/response types, JSON serialization (see [`internal/models/models.go`](internal/models/models.go))
+- **DB**: Storage abstraction; `db.Connect` returns either PostgreSQL or `JSONDB` based on `DATABASE_URL` prefix (see [`internal/db/db.go`](internal/db/db.go))
+- Backend uses `snake_case` JSON (e.g., `client_id`, `expires_at`); `ClientSecretHash` tagged `json:"-"` (never serialized)
+- Frontend: React hooks for state, `react-hook-form` for forms, `sonner` for toasts, `axios` for API calls
+- Frontend API base URL from `VITE_API_URL` env var; falls back to production URL — set it to `http://localhost:8081` locally
+- Router registration: `cmd/server/main.go` wires all routes manually onto `http.NewServeMux`; middleware (`JWTAuth`, `AdminAuth`) wraps handlers via closures
+- `middleware.AgentIDKey` context key carries `uuid.UUID`; retrieve with `middleware.GetAgentIDFromContext(ctx)`
+- Webhook system: `services.DeliveryWorker` goroutine pool dispatches deliveries; `AuditService.SetWebhookService` injects webhook triggering into audit events
+- Version string lives in `cmd/server/main.go` root handler response (`"version":"2.12.61"`)

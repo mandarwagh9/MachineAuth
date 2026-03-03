@@ -32,9 +32,12 @@ func (s *AgentService) Create(req models.CreateAgentRequest) (*models.CreateAgen
 		return nil, fmt.Errorf("failed to hash secret: %w", err)
 	}
 
+	// Capture a single timestamp so the DB record and the response are consistent.
+	now := time.Now()
+
 	var expiresAt *time.Time
 	if req.ExpiresIn != nil && *req.ExpiresIn > 0 {
-		expTime := time.Now().Add(time.Duration(*req.ExpiresIn) * time.Second)
+		expTime := now.Add(time.Duration(*req.ExpiresIn) * time.Second)
 		expiresAt = &expTime
 	}
 
@@ -58,8 +61,8 @@ func (s *AgentService) Create(req models.CreateAgentRequest) (*models.CreateAgen
 		ClientSecretHash: string(secretHash),
 		Scopes:           scopes,
 		IsActive:         true,
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		CreatedAt:        now,
+		UpdatedAt:        now,
 		ExpiresAt:        expiresAt,
 	}
 
@@ -82,8 +85,8 @@ func (s *AgentService) Create(req models.CreateAgentRequest) (*models.CreateAgen
 			ClientID:       clientID,
 			Scopes:         scopes,
 			IsActive:       true,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
+			CreatedAt:      now,
+			UpdatedAt:      now,
 			ExpiresAt:      expiresAt,
 		},
 		ClientSecret: clientSecret,

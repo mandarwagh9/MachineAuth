@@ -23,13 +23,8 @@ func NewOrganizationHandler(orgService *services.OrganizationService, teamServic
 	}
 }
 
-func (h *OrganizationHandler) writeError(w http.ResponseWriter, error, description string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(models.ErrorResponse{
-		Error:            error,
-		ErrorDescription: description,
-	})
+func (h *OrganizationHandler) writeError(w http.ResponseWriter, errCode, description string) {
+	writeJSONError(w, http.StatusBadRequest, errCode, description)
 }
 
 func (h *OrganizationHandler) ListOrganizations(w http.ResponseWriter, r *http.Request) {

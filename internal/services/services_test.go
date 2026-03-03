@@ -70,27 +70,6 @@ func TestFilterScopes(t *testing.T) {
 	}
 }
 
-func TestJoinScopes(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []string
-		expected string
-	}{
-		{"empty", []string{}, ""},
-		{"single", []string{"read"}, "read"},
-		{"multiple", []string{"read", "write"}, "read write"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := joinScopes(tt.input)
-			if result != tt.expected {
-				t.Errorf("joinScopes(%v) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestGenerateSecureSecret(t *testing.T) {
 	secret1 := generateSecureSecret(32)
 	secret2 := generateSecureSecret(32)
