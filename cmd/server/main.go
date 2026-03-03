@@ -12,12 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"machineauth/internal/config"
 	"machineauth/internal/db"
 	"machineauth/internal/handlers"
 	"machineauth/internal/middleware"
 	"machineauth/internal/services"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -123,6 +124,12 @@ func main() {
 	// ── Admin auth endpoint (public, aggressively rate-limited) ────────
 
 	mux.Handle("/api/auth/login", middleware.RateLimit(adminLimiter)(http.HandlerFunc(authHandler.AdminLogin)))
+	mux.Handle("/api/auth/signup", middleware.RateLimit(adminLimiter)(http.HandlerFunc(authHandler.Signup)))
+
+	// ── Admin authenticated endpoints ──────────────────────────────────
+
+	mux.Handle("/api/auth/me", adminProtected(authHandler.AdminGetMe))
+	mux.Handle("/api/auth/switch-org", adminProtected(authHandler.SwitchOrg))
 
 	// ── Admin-protected CRUD endpoints ─────────────────────────────────
 
@@ -140,6 +147,25 @@ func main() {
 
 	// Audit logs (admin-protected).
 	mux.Handle("/api/audit-logs", adminProtected(auditHandler.ListAuditLogs))
+
+	// Stats endpoint (admin-protected) — consumed by Dashboard.
+	mux.Handle("/api/stats", adminProtected(func(w http.ResponseWriter, r *http.Request) {
+		stats, err := agentService.GetStats()
+		if err != nil {
+			http.Error(w, `{"error":"failed to fetch stats"}`, http.StatusInternalServerError)
+			return
+		}
+		refreshed, revoked := tokenService.GetMetrics()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"requests":        stats.TotalRequests,
+			"tokens_issued":   stats.TokensIssued,
+			"tokens_refreshed": refreshed,
+			"tokens_revoked":  revoked,
+			"active_tokens":   stats.ActiveTokens,
+			"total_agents":    stats.TotalAgents,
+		})
+	}))
 
 	// Webhook routes (admin-protected).
 	mux.Handle("/api/webhooks", adminProtected(webhookHandler.ListAndCreate))
