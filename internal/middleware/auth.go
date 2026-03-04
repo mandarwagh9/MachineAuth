@@ -149,6 +149,27 @@ func APIKeyAuth(database db.Database) func(http.Handler) http.Handler {
 	}
 }
 
+// JWTOrAPIKeyAuth accepts either a JWT token or an API key.
+func JWTOrAPIKeyAuth(tokenService *services.TokenService, database db.Database) func(http.Handler) http.Handler {
+	jwtMW := JWTAuth(tokenService)
+	apiKeyMW := APIKeyAuth(database)
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			key := extractAPIKey(r)
+
+			// If it's an API key (sk_ prefix), use API key auth.
+			if key != "" && strings.HasPrefix(key, "sk_") {
+				apiKeyMW(next).ServeHTTP(w, r)
+				return
+			}
+
+			// Otherwise try JWT auth.
+			jwtMW(next).ServeHTTP(w, r)
+		})
+	}
+}
+
 // AdminOrAPIKeyAuth accepts either an admin JWT or an API key.
 // Admin JWTs take precedence when both are present.
 func AdminOrAPIKeyAuth(adminService *services.AdminService, database db.Database) func(http.Handler) http.Handler {

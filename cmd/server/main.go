@@ -279,7 +279,20 @@ func main() {
 	mux.Handle("/api/agents/me/reactivate", jwtAuth(http.HandlerFunc(agentSelfHandler.Reactivate)))
 	mux.Handle("/api/agents/me/delete", jwtAuth(http.HandlerFunc(agentSelfHandler.Delete)))
 
-	mux.Handle("/api/verify", jwtAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// /api/verify accepts both JWT and API keys
+	mux.Handle("/api/verify", middleware.JWTOrAPIKeyAuth(tokenService, database)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authMethod := r.Context().Value(middleware.AuthMethodKey)
+		if authMethod == "api_key" {
+			orgID, _ := middleware.GetOrgIDFromContext(r.Context())
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"valid":           true,
+				"auth_method":     "api_key",
+				"organization_id": orgID,
+			})
+			return
+		}
+
 		agentID, ok := middleware.GetAgentIDFromContext(r.Context())
 		if !ok {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
