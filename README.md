@@ -5,7 +5,11 @@
 </h1>
 
 <p align="center">
-  <strong>Self-hosted OAuth 2.0 authentication for AI agents and machine-to-machine communication.</strong>
+  <strong>Authentication built for AI agents.</strong>
+</p>
+
+<p align="center">
+  <em>OAuth for AI agents. Secure infrastructure for AI-to-API access.</em>
 </p>
 
 <p align="center">
@@ -36,9 +40,13 @@
 
 ## What is MachineAuth?
 
-MachineAuth is a **self-hosted OAuth 2.0 server** purpose-built for authenticating AI agents and machines. Instead of sharing long-lived API keys, your agents authenticate using **OAuth 2.0 Client Credentials** and receive short-lived **RS256-signed JWT tokens**.
+MachineAuth provides **authentication and permission infrastructure** that allows AI agents to securely access APIs, tools, and services.
 
-Think of it as Auth0, but for bots — lightweight, self-hosted, zero external dependencies.
+**MachineAuth is OAuth for AI agents.**
+
+AI agents are starting to interact with the real internet. They call APIs, trigger workflows, access data, and automate tasks. But today's authentication systems were designed for humans, not autonomous software.
+
+MachineAuth solves this. We provide secure identity, permission, and access control for AI agents — allowing them to safely interact with APIs and external services. With MachineAuth, developers can give AI agents controlled access to tools without exposing API keys or risking misuse.
 
 ### Why MachineAuth?
 

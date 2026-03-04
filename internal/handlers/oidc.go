@@ -19,8 +19,8 @@ import (
 
 // OIDCHandler serves OpenID Connect discovery, JWKS, and UserInfo endpoints.
 type OIDCHandler struct {
-	cfg        *config.Config
-	orgService *services.OrganizationService
+	cfg          *config.Config
+	orgService   *services.OrganizationService
 	agentService *services.AgentService
 	tokenService *services.TokenService
 }
@@ -28,8 +28,8 @@ type OIDCHandler struct {
 // NewOIDCHandler creates a new OIDC handler.
 func NewOIDCHandler(cfg *config.Config, orgService *services.OrganizationService, agentService *services.AgentService, tokenService *services.TokenService) *OIDCHandler {
 	return &OIDCHandler{
-		cfg:        cfg,
-		orgService: orgService,
+		cfg:          cfg,
+		orgService:   orgService,
 		agentService: agentService,
 		tokenService: tokenService,
 	}

@@ -150,16 +150,16 @@ type OIDCDiscovery struct {
 
 // UserInfoResponse is the profile returned by GET /oauth/userinfo.
 type UserInfoResponse struct {
-	Sub            string                 `json:"sub"`
-	Name           string                 `json:"name,omitempty"`
-	AgentID        string                 `json:"agent_id"`
-	OrgID          string                 `json:"org_id,omitempty"`
-	TeamID         string                 `json:"team_id,omitempty"`
-	Scopes         []string               `json:"scopes,omitempty"`
-	Status         string                 `json:"status,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt      int64                  `json:"created_at,omitempty"`
-	UpdatedAt      int64                  `json:"updated_at,omitempty"`
+	Sub       string                 `json:"sub"`
+	Name      string                 `json:"name,omitempty"`
+	AgentID   string                 `json:"agent_id"`
+	OrgID     string                 `json:"org_id,omitempty"`
+	TeamID    string                 `json:"team_id,omitempty"`
+	Scopes    []string               `json:"scopes,omitempty"`
+	Status    string                 `json:"status,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt int64                  `json:"created_at,omitempty"`
+	UpdatedAt int64                  `json:"updated_at,omitempty"`
 }
 
 type ErrorResponse struct {
