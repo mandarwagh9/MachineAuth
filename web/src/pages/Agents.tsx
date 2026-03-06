@@ -10,23 +10,30 @@ import {
   XCircle,
   Clock
 } from 'lucide-react'
-import { AgentService } from '@/services/api'
+import { AgentService, OrganizationService } from '@/services/api'
 import type { Agent } from '@/types'
 import { toast } from 'sonner'
+import { useOrg } from '@/contexts/OrgContext'
 
 export function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const { currentOrg } = useOrg()
 
   useEffect(() => {
     fetchAgents()
-  }, [])
+  }, [currentOrg])
 
   const fetchAgents = async () => {
     try {
-      const data = await AgentService.list()
+      let data: { agents?: Agent[] }
+      if (currentOrg) {
+        data = await OrganizationService.listAgents(currentOrg.id)
+      } else {
+        data = await AgentService.list()
+      }
       setAgents(data.agents || [])
     } catch (error) {
       console.error('Failed to fetch agents:', error)
