@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { 
   LayoutDashboard, 
   Building2,
@@ -8,8 +9,11 @@ import {
   Key,
   Shield,
   User,
-  Webhook
+  Webhook,
+  ChevronDown,
+  Plus
 } from 'lucide-react'
+import { useOrg } from '@/contexts/OrgContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -24,9 +28,71 @@ const navigation = [
 
 export function Sidebar() {
   const location = useLocation()
+  const { currentOrg, organizations, switchOrg, loading } = useOrg()
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   return (
     <div className="flex flex-col h-full bg-slate-900 border-r border-slate-800 w-64">
+      {/* Organization Selector */}
+      <div className="px-3 py-3 border-b border-slate-800">
+        <div className="relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-left"
+          >
+            <Building2 className="w-4 h-4 text-blue-500" />
+            <div className="flex-1 min-w-0">
+              {loading ? (
+                <span className="text-xs text-slate-400">Loading...</span>
+              ) : currentOrg ? (
+                <>
+                  <p className="text-sm font-medium text-white truncate">{currentOrg.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{currentOrg.slug}</p>
+                </>
+              ) : (
+                <span className="text-sm text-slate-400">Select Organization</span>
+              )}
+            </div>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {dropdownOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg overflow-hidden z-50">
+              <div className="max-h-60 overflow-y-auto">
+                {organizations.map((org) => (
+                  <button
+                    key={org.id}
+                    onClick={() => {
+                      switchOrg(org.id)
+                      setDropdownOpen(false)
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-700 ${
+                      currentOrg?.id === org.id ? 'bg-slate-700' : ''
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{org.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{org.slug}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-slate-700 px-3 py-2">
+                <Link
+                  to="/organizations/new"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Organization
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-800">
         <Shield className="w-8 h-8 text-blue-500" />
         <div>
