@@ -16,6 +16,7 @@ import { AgentDetailPage } from './pages/AgentDetail'
 import { OrganizationsPage } from './pages/Organizations'
 import { CreateOrganizationPage } from './pages/CreateOrganization'
 import { OrganizationDetailPage } from './pages/OrganizationDetail'
+import { OrgProvider } from './contexts/OrgContext'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -97,26 +98,28 @@ function Login() {
 
 function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="organizations" element={<OrganizationsPage />} />
-        <Route path="organizations/new" element={<CreateOrganizationPage />} />
-        <Route path="organizations/:id" element={<OrganizationDetailPage />} />
-        <Route path="agents" element={<AgentsPage />} />
-        <Route path="agents/new" element={<CreateAgentPage />} />
-        <Route path="agents/:id" element={<AgentDetailPage />} />
-        <Route path="metrics" element={<MetricsPage />} />
-        <Route path="tokens" element={<TokensPage />} />
-        <Route path="settings" element={<Dashboard />} />
-        <Route path="my-account" element={<MyAccountPage />} />
-        <Route path="webhooks" element={<WebhookList />} />
-        <Route path="webhooks/new" element={<WebhookForm />} />
-        <Route path="webhooks/:id" element={<WebhookDetail />} />
-        <Route path="webhooks/:id/edit" element={<WebhookForm />} />
-      </Route>
-    </Routes>
+    <OrgProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route index element={<Dashboard />} />
+          <Route path="organizations" element={<OrganizationsPage />} />
+          <Route path="organizations/new" element={<CreateOrganizationPage />} />
+          <Route path="organizations/:id" element={<OrganizationDetailPage />} />
+          <Route path="agents" element={<AgentsPage />} />
+          <Route path="agents/new" element={<CreateAgentPage />} />
+          <Route path="agents/:id" element={<AgentDetailPage />} />
+          <Route path="metrics" element={<MetricsPage />} />
+          <Route path="tokens" element={<TokensPage />} />
+          <Route path="settings" element={<Dashboard />} />
+          <Route path="my-account" element={<MyAccountPage />} />
+          <Route path="webhooks" element={<WebhookList />} />
+          <Route path="webhooks/new" element={<WebhookForm />} />
+          <Route path="webhooks/:id" element={<WebhookDetail />} />
+          <Route path="webhooks/:id/edit" element={<WebhookForm />} />
+        </Route>
+      </Routes>
+    </OrgProvider>
   )
 }
 
