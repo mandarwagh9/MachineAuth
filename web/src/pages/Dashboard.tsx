@@ -14,8 +14,9 @@ import {
   CheckCircle2,
   XCircle
 } from 'lucide-react'
-import { MetricsService, HealthService, AgentService } from '@/services/api'
+import { MetricsService, HealthService, AgentService, OrganizationService } from '@/services/api'
 import type { Metrics, HealthCheck, Agent } from '@/types'
+import { useOrg } from '@/contexts/OrgContext'
 
 const StatCard = ({ 
   title, 
@@ -59,15 +60,26 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const { currentOrg } = useOrg()
 
   const fetchData = async () => {
     try {
       setError(null)
-      const [metricsData, healthData, agentsData] = await Promise.all([
+      
+      let agentsData: { agents?: Agent[] } = { agents: [] }
+      
+      // If org is selected, fetch org-specific data
+      if (currentOrg) {
+        agentsData = await OrganizationService.listAgents(currentOrg.id).catch(() => ({ agents: [] }))
+      } else {
+        agentsData = await AgentService.list().catch(() => ({ agents: [] }))
+      }
+      
+      const [metricsData, healthData] = await Promise.all([
         MetricsService.get().catch(() => null),
         HealthService.ready().catch(() => null),
-        AgentService.list().catch(() => ({ agents: [] }))
       ])
+      
       setMetrics(metricsData)
       setHealth(healthData)
       setAgents(agentsData?.agents || [])
@@ -87,7 +99,7 @@ export function Dashboard() {
     fetchData()
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [currentOrg])
 
   if (loading) {
     return (
