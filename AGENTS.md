@@ -108,8 +108,7 @@ machineauth/
 │   ├── handlers/           # HTTP handlers
 │   ├── middleware/         # HTTP middleware
 │   ├── models/             # Data models
-│   ├── services/           # Business logic
-│   └── utils/              # Utilities
+│   └── services/           # Business logic
 ├── web/                    # React frontend
 │   └── src/
 │       ├── components/     # React components
@@ -223,7 +222,7 @@ WEBHOOK_TIMEOUT_SECS=10
 - Frontend proxies `/api`, `/oauth`, `/.well-known`, `/health`, `/metrics` to `localhost:8081`
 - Use `@/` for absolute imports (maps to `./src/`)
 - Admin credentials: `admin@example.com` / `changeme` (change before deployment)
-- Alternate Go entry: `go run server-main.go` (port 8081)
+- Primary Go entry: `go run ./cmd/server` (port 8080)
 
 ## Key Conventions
 

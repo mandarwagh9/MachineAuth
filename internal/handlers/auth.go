@@ -197,9 +197,7 @@ func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tokenResp)
+	writeJSON(w, tokenResp)
 }
 
 func (h *AuthHandler) Introspect(w http.ResponseWriter, r *http.Request) {
@@ -243,14 +241,11 @@ func (h *AuthHandler) Introspect(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.tokenService.IntrospectToken(token)
 	if err != nil {
 		log.Printf("failed to introspect token: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(models.IntrospectResponse{Active: false})
+		writeJSON(w, models.IntrospectResponse{Active: false})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	writeJSON(w, resp)
 }
 
 func (h *AuthHandler) Revoke(w http.ResponseWriter, r *http.Request) {
@@ -307,9 +302,7 @@ func (h *AuthHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "revoked"})
+	writeJSON(w, map[string]string{"status": "revoked"})
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
@@ -385,9 +378,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		tokenResp.RefreshToken = newRefresh
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tokenResp)
+	writeJSON(w, tokenResp)
 }
 
 func (h *AuthHandler) writeError(w http.ResponseWriter, errCode, description string) {
@@ -429,33 +420,27 @@ func (h *AuthHandler) AdminLogin(w http.ResponseWriter, r *http.Request) {
 		resp, err := h.adminService.Authenticate(email, req.Password)
 		if err != nil {
 			h.recordFailure("admin:" + email)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(models.AdminTokenResponse{
+			writeJSONStatus(w, http.StatusUnauthorized, models.AdminTokenResponse{
 				Success: false,
 			})
 			return
 		}
 		h.recordSuccess("admin:" + email)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		writeJSON(w, resp)
 		return
 	}
 
 	// Legacy fallback (no admin service configured).
 	if email == h.cfg.AdminEmail && req.Password == h.cfg.AdminPassword {
 		h.recordSuccess("admin:" + email)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(models.AdminTokenResponse{
+		writeJSON(w, models.AdminTokenResponse{
 			Success: true,
 		})
 		return
 	}
 
 	h.recordFailure("admin:" + email)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
-	json.NewEncoder(w).Encode(models.AdminTokenResponse{
+	writeJSONStatus(w, http.StatusUnauthorized, models.AdminTokenResponse{
 		Success: false,
 	})
 }
@@ -490,9 +475,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	writeJSONStatus(w, http.StatusCreated, resp)
 }
 
 // SwitchOrg handles POST /api/auth/switch-org — switch organization context.
@@ -523,8 +506,7 @@ func (h *AuthHandler) SwitchOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	writeJSON(w, resp)
 }
 
 // GetMe returns the current admin user info and org memberships.
@@ -548,8 +530,7 @@ func (h *AuthHandler) AdminGetMe(w http.ResponseWriter, r *http.Request) {
 
 	memberships, _ := h.adminService.ListOrgMemberships(adminID)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"user": map[string]interface{}{
 			"id":    user.ID,
 			"email": user.Email,

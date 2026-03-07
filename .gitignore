@@ -7,6 +7,7 @@
 /bin/
 /machineauth
 /agentauth
+/server
 
 # Test binary
 *.test
@@ -38,6 +39,9 @@ server.log
 # Environment
 .env
 .env.local
+
+# RSA keys
+keys/
 
 # Build artifacts
 dist/

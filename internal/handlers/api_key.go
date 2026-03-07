@@ -37,8 +37,7 @@ func (h *APIKeyHandler) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 		keys = []models.APIKey{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.APIKeysResponse{APIKeys: keys})
+	writeJSON(w, models.APIKeysResponse{APIKeys: keys})
 }
 
 func (h *APIKeyHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -73,9 +72,7 @@ func (h *APIKeyHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(key)
+	writeJSONStatus(w, http.StatusCreated, key)
 }
 
 func (h *APIKeyHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {

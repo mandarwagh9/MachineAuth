@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -33,8 +32,7 @@ func (h *AgentSelfHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.AgentResponse{Agent: *agent})
+	writeJSON(w, models.AgentResponse{Agent: *agent})
 }
 
 func (h *AgentSelfHandler) GetUsage(w http.ResponseWriter, r *http.Request) {
@@ -51,8 +49,7 @@ func (h *AgentSelfHandler) GetUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(usage)
+	writeJSON(w, usage)
 }
 
 func (h *AgentSelfHandler) RotateCredentials(w http.ResponseWriter, r *http.Request) {
@@ -81,8 +78,7 @@ func (h *AgentSelfHandler) RotateCredentials(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, map[string]string{
 		"client_secret": newSecret,
 	})
 }
@@ -106,9 +102,7 @@ func (h *AgentSelfHandler) Deactivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, map[string]string{
 		"message": "agent deactivated successfully",
 	})
 }
@@ -132,9 +126,7 @@ func (h *AgentSelfHandler) Reactivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, map[string]string{
 		"message": "agent reactivated successfully",
 	})
 }
@@ -158,6 +150,5 @@ func (h *AgentSelfHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
 }

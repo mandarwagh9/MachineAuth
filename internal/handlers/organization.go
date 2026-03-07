@@ -35,8 +35,7 @@ func (h *OrganizationHandler) ListOrganizations(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.OrganizationsResponse{Organizations: orgs})
+	writeJSON(w, models.OrganizationsResponse{Organizations: orgs})
 }
 
 func (h *OrganizationHandler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
@@ -70,9 +69,7 @@ func (h *OrganizationHandler) CreateOrganization(w http.ResponseWriter, r *http.
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(org)
+	writeJSONStatus(w, http.StatusCreated, org)
 }
 
 func (h *OrganizationHandler) GetOrganization(w http.ResponseWriter, r *http.Request) {
@@ -88,8 +85,7 @@ func (h *OrganizationHandler) GetOrganization(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(org)
+	writeJSON(w, org)
 }
 
 func (h *OrganizationHandler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
@@ -124,8 +120,7 @@ func (h *OrganizationHandler) UpdateOrganization(w http.ResponseWriter, r *http.
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(org)
+	writeJSON(w, org)
 }
 
 func (h *OrganizationHandler) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
@@ -163,8 +158,7 @@ func (h *OrganizationHandler) ListTeams(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.TeamsResponse{Teams: teams})
+	writeJSON(w, models.TeamsResponse{Teams: teams})
 }
 
 func (h *OrganizationHandler) CreateTeam(w http.ResponseWriter, r *http.Request) {
@@ -204,9 +198,7 @@ func (h *OrganizationHandler) CreateTeam(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(team)
+	writeJSONStatus(w, http.StatusCreated, team)
 }
 
 func extractID(r *http.Request) string {

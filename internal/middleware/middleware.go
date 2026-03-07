@@ -3,6 +3,7 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -66,8 +67,8 @@ func parseOrigins(origins string) []string {
 	}
 
 	var result []string
-	for _, o := range splitCSV(origins) {
-		if o := trimSpace(o); o != "" {
+	for _, o := range strings.Split(origins, ",") {
+		if o := strings.TrimSpace(o); o != "" {
 			result = append(result, o)
 		}
 	}
@@ -81,31 +82,4 @@ func isOriginAllowed(origin string, allowed []string) bool {
 		}
 	}
 	return false
-}
-
-func splitCSV(s string) []string {
-	var result []string
-	current := ""
-	for _, c := range s {
-		if c == ',' {
-			result = append(result, current)
-			current = ""
-		} else {
-			current += string(c)
-		}
-	}
-	result = append(result, current)
-	return result
-}
-
-func trimSpace(s string) string {
-	start := 0
-	end := len(s)
-	for start < end && (s[start] == ' ' || s[start] == '\t') {
-		start++
-	}
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') {
-		end--
-	}
-	return s[start:end]
 }

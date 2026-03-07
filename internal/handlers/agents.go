@@ -44,8 +44,7 @@ func (h *AgentsHandler) List(w http.ResponseWriter, r *http.Request) {
 		agents = []models.Agent{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.AgentsListResponse{Agents: agents})
+	writeJSON(w, models.AgentsListResponse{Agents: agents})
 }
 
 // ListPaginated returns agents with pagination, search, and filtering.
@@ -91,8 +90,7 @@ func (h *AgentsHandler) ListPaginated(w http.ResponseWriter, r *http.Request) {
 		totalPages++
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.AgentsListResponse{
+	writeJSON(w, models.AgentsListResponse{
 		Agents: agents,
 		Pagination: &models.Pagination{
 			Total:      total,
@@ -136,9 +134,7 @@ func (h *AgentsHandler) CreateInOrganization(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(agent)
+	writeJSONStatus(w, http.StatusCreated, agent)
 }
 
 func (h *AgentsHandler) HandleAgent(w http.ResponseWriter, r *http.Request) {
@@ -177,8 +173,7 @@ func (h *AgentsHandler) getAgent(w http.ResponseWriter, r *http.Request, id uuid
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.AgentResponse{Agent: *agent})
+	writeJSON(w, models.AgentResponse{Agent: *agent})
 }
 
 func (h *AgentsHandler) updateAgent(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
@@ -204,8 +199,7 @@ func (h *AgentsHandler) updateAgent(w http.ResponseWriter, r *http.Request, id u
 
 	h.auditService.LogAgentUpdated(id, r.RemoteAddr, r.UserAgent())
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.AgentResponse{Agent: *agent})
+	writeJSON(w, models.AgentResponse{Agent: *agent})
 }
 
 func (h *AgentsHandler) deleteAgent(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
@@ -217,7 +211,6 @@ func (h *AgentsHandler) deleteAgent(w http.ResponseWriter, r *http.Request, id u
 
 	h.auditService.LogAgentDeleted(id, r.RemoteAddr, r.UserAgent())
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -248,8 +241,7 @@ func (h *AgentsHandler) rotateAgent(w http.ResponseWriter, r *http.Request, id u
 
 	h.auditService.LogCredentialsRotated(id, r.RemoteAddr, r.UserAgent())
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, map[string]string{
 		"client_secret": newSecret,
 	})
 }
@@ -294,7 +286,5 @@ func (h *AgentsHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	h.auditService.LogAgentCreated(&resp.Agent, r.RemoteAddr, r.UserAgent())
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	writeJSONStatus(w, http.StatusCreated, resp)
 }

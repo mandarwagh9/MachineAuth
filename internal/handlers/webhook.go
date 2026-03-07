@@ -103,8 +103,7 @@ func (h *WebhookHandler) HandleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	events := services.AllWebhookEvents()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"events": events,
 	})
 }
@@ -129,8 +128,7 @@ func (h *WebhookHandler) listWebhooks(w http.ResponseWriter, r *http.Request) {
 		webhooks = []models.WebhookConfig{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.WebhooksListResponse{Webhooks: webhooks})
+	writeJSON(w, models.WebhooksListResponse{Webhooks: webhooks})
 }
 
 func (h *WebhookHandler) createWebhook(w http.ResponseWriter, r *http.Request) {
@@ -159,9 +157,7 @@ func (h *WebhookHandler) createWebhook(w http.ResponseWriter, r *http.Request) {
 
 	h.auditService.LogWebhook(services.EventWebhookCreated, resp.Webhook.ID, r.RemoteAddr, r.UserAgent())
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	writeJSONStatus(w, http.StatusCreated, resp)
 }
 
 func (h *WebhookHandler) getWebhook(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
@@ -172,8 +168,7 @@ func (h *WebhookHandler) getWebhook(w http.ResponseWriter, r *http.Request, id u
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.WebhookResponse{Webhook: *webhook})
+	writeJSON(w, models.WebhookResponse{Webhook: *webhook})
 }
 
 func (h *WebhookHandler) updateWebhook(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
@@ -199,8 +194,7 @@ func (h *WebhookHandler) updateWebhook(w http.ResponseWriter, r *http.Request, i
 
 	h.auditService.LogWebhook(services.EventWebhookUpdated, id, r.RemoteAddr, r.UserAgent())
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.WebhookResponse{Webhook: *webhook})
+	writeJSON(w, models.WebhookResponse{Webhook: *webhook})
 }
 
 func (h *WebhookHandler) deleteWebhook(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
@@ -212,7 +206,6 @@ func (h *WebhookHandler) deleteWebhook(w http.ResponseWriter, r *http.Request, i
 
 	h.auditService.LogWebhook(services.EventWebhookDeleted, id, r.RemoteAddr, r.UserAgent())
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -244,8 +237,7 @@ func (h *WebhookHandler) testWebhook(w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	writeJSON(w, result)
 }
 
 func (h *WebhookHandler) listDeliveries(w http.ResponseWriter, r *http.Request, webhookID uuid.UUID) {
@@ -265,8 +257,7 @@ func (h *WebhookHandler) listDeliveries(w http.ResponseWriter, r *http.Request, 
 		deliveries = []models.WebhookDelivery{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.WebhookDeliveriesListResponse{Deliveries: deliveries})
+	writeJSON(w, models.WebhookDeliveriesListResponse{Deliveries: deliveries})
 }
 
 func (h *WebhookHandler) getDelivery(w http.ResponseWriter, r *http.Request, deliveryID uuid.UUID) {
@@ -282,6 +273,5 @@ func (h *WebhookHandler) getDelivery(w http.ResponseWriter, r *http.Request, del
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.WebhookDeliveryResponse{Delivery: *delivery})
+	writeJSON(w, models.WebhookDeliveryResponse{Delivery: *delivery})
 }

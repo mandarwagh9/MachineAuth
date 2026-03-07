@@ -16,7 +16,7 @@ Thank you for your interest in contributing!
 git clone https://github.com/mandarwagh9/MachineAuth.git
 cd MachineAuth
 go mod download
-go run server-main.go
+go run ./cmd/server
 ```
 
 ## Code Style
