@@ -100,7 +100,7 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"endpoints":"/oauth/token, /oauth/introspect, /oauth/revoke, /oauth/refresh, /api/agents, /.well-known/jwks.json","service":"MachineAuth","status":"running","version":"2.12.61"}`))
+		w.Write([]byte(`{"endpoints":"/oauth/token, /oauth/introspect, /oauth/revoke, /oauth/refresh, /api/agents, /.well-known/jwks.json","service":"MachineAuth","status":"running","version":"2.13.0"}`))
 	})
 
 	mux.HandleFunc("/health/ready", func(w http.ResponseWriter, r *http.Request) {
