@@ -143,15 +143,16 @@ export function AgentsPage() {
               <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Agent</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Client ID</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Scopes</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tokens</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Created</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Last Activity</th>
               <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {filteredAgents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                   <Users className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                   <p>No agents found</p>
                   <Link to="/agents/new" className="text-blue-600 hover:underline mt-1 inline-block">
@@ -201,6 +202,12 @@ export function AgentsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
+                    <div className="text-sm">
+                      <span className="font-medium text-slate-900">{agent.token_count ?? 0}</span>
+                      <span className="text-slate-400 text-xs ml-1">tokens</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
                     {agent.is_active ? (
                       <span className="inline-flex items-center gap-1 text-green-600">
                         <CheckCircle className="w-4 h-4" />
@@ -214,10 +221,14 @@ export function AgentsPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {formatDate(agent.created_at)}
-                    </div>
+                    {agent.last_activity_at ? (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {formatDate(agent.last_activity_at)}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">Never</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
