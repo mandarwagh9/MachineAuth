@@ -5,6 +5,12 @@ from typing import Any, Dict, List, Optional
 
 
 @dataclass
+class AutoRefreshOptions:
+    enabled: bool
+    refresh_buffer_seconds: int = 60
+
+
+@dataclass
 class Agent:
     id: str
     name: str

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import time
 from typing import Any, Dict, Iterable, List, Optional
 
 import requests
@@ -10,6 +12,7 @@ from .models import (
     Agent,
     AgentUsage,
     APIKey,
+    AutoRefreshOptions,
     Organization,
     Team,
     TokenResponse,
@@ -45,6 +48,7 @@ class MachineAuthClient:
         access_token: Optional[str] = None,
         timeout: float = 10.0,
         session: Optional[requests.Session] = None,
+        auto_refresh: Optional[AutoRefreshOptions] = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.client_id = client_id
@@ -53,6 +57,88 @@ class MachineAuthClient:
         self.timeout = timeout
         self.session = session or requests.Session()
         self._owns_session = session is None
+        self._auto_refresh = auto_refresh
+        self._cached_token: Optional[TokenResponse] = None
+        self._token_expiry_time: Optional[float] = None
+        self._refresh_timer: Optional[threading.Timer] = None
+        self._refresh_lock = threading.Lock()
+
+    # ── Auto-refresh helpers ─────────────────────────────────────────
+
+    def _is_token_expiring_soon(self) -> bool:
+        if not self._auto_refresh or not self._auto_refresh.enabled:
+            return False
+        if not self._token_expiry_time:
+            return False
+        buffer = self._auto_refresh.refresh_buffer_seconds
+        return (time.time() + buffer) >= self._token_expiry_time
+
+    def _set_cached_token(self, token: TokenResponse) -> None:
+        self._cached_token = token
+        self.access_token = token.access_token
+        expires_in = token.expires_in or 3600
+        self._token_expiry_time = time.time() + expires_in
+        self._schedule_auto_refresh(expires_in)
+
+    def _schedule_auto_refresh(self, expires_in: int) -> None:
+        if self._refresh_timer:
+            self._refresh_timer.cancel()
+        if not self._auto_refresh or not self._auto_refresh.enabled:
+            return
+        buffer = self._auto_refresh.refresh_buffer_seconds
+        refresh_delay = expires_in - buffer
+        if refresh_delay > 0:
+            self._refresh_timer = threading.Timer(refresh_delay, self._do_refresh_token)
+            self._refresh_timer.daemon = True
+            self._refresh_timer.start()
+
+    def _do_refresh_token(self) -> TokenResponse:
+        if not self._auto_refresh or not self._auto_refresh.enabled:
+            raise ValueError("Auto-refresh is not enabled")
+        if not self.client_id or not self.client_secret:
+            raise ValueError("client_id and client_secret are required for auto-refresh")
+
+        data: Dict[str, str] = {
+            "grant_type": "client_credentials",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+        }
+        if self._cached_token and self._cached_token.scope:
+            data["scope"] = self._cached_token.scope
+
+        raw = self._request(
+            "POST",
+            "/oauth/token",
+            data=data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        token = TokenResponse.from_dict(raw)
+        self._set_cached_token(token)
+        return token
+
+    def _refresh_token_if_needed(self, token: Optional[str]) -> Optional[str]:
+        if token or not self._auto_refresh or not self._auto_refresh.enabled or not self._cached_token:
+            return token
+
+        if not self._is_token_expiring_soon():
+            return self._cached_token.access_token
+
+        with self._refresh_lock:
+            if not self._is_token_expiring_soon():
+                return self._cached_token.access_token
+            return self._do_refresh_token().access_token
+
+    def force_token_refresh(self) -> TokenResponse:
+        """Force an immediate token refresh."""
+        return self._do_refresh_token()
+
+    def get_cached_token(self) -> Optional[TokenResponse]:
+        """Get the current cached token if available."""
+        return self._cached_token
+
+    def is_auto_refresh_enabled(self) -> bool:
+        """Check if auto-refresh is enabled."""
+        return self._auto_refresh.enabled if self._auto_refresh else False
 
     @classmethod
     def from_env(cls) -> "MachineAuthClient":
@@ -107,8 +193,7 @@ class MachineAuthClient:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         token = TokenResponse.from_dict(raw)
-        if token.access_token:
-            self.access_token = token.access_token
+        self._set_cached_token(token)
         return token
 
     def refresh_token(
@@ -465,6 +550,14 @@ class MachineAuthClient:
         headers: Optional[Dict[str, str]] = None,
         **kwargs: Any,
     ) -> Any:
+        # Auto-refresh token if needed before making the request
+        if self._auto_refresh and self._auto_refresh.enabled:
+            has_auth = headers and "Authorization" in headers
+            if not has_auth:
+                token = self._refresh_token_if_needed(None)
+                if token:
+                    headers = {**(headers or {}), f"Authorization": f"Bearer {token}"}
+
         url = f"{self.base_url}{path}"
         merged_headers = {"Accept": "application/json", **(headers or {})}
         response = self.session.request(
