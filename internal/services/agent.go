@@ -333,6 +333,14 @@ func (s *AgentService) Update(id uuid.UUID, req models.UpdateAgentRequest) (*mod
 		if req.Scopes != nil {
 			agent.Scopes = req.Scopes
 		}
+		if req.IsActive != nil {
+			agent.IsActive = *req.IsActive
+			if *req.IsActive {
+				agent.Status = string(models.AgentStatusActive)
+			} else {
+				agent.Status = string(models.AgentStatusInactive)
+			}
+		}
 		if req.Status != nil {
 			agent.Status = string(*req.Status)
 			agent.IsActive = *req.Status == models.AgentStatusActive

@@ -74,6 +74,7 @@ type UpdateAgentRequest struct {
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	Scopes      []string               `json:"scopes,omitempty"`
 	Status      *AgentStatus           `json:"status,omitempty"`
+	IsActive    *bool                  `json:"is_active,omitempty"`
 	ExpiresAt   *time.Time             `json:"expires_at,omitempty"`
 }
 
