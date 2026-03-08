@@ -1,5 +1,10 @@
 // ── Configuration ────────────────────────────────────────────────
 
+export interface AutoRefreshOptions {
+  enabled: boolean;
+  refreshBufferSeconds?: number; // Refresh N seconds before expiry (default: 60)
+}
+
 export interface ClientOptions {
   baseUrl?: string;
   clientId?: string;
@@ -11,6 +16,7 @@ export interface ClientOptions {
   retryBaseMs?: number;
   onRequest?: (url: string, init: RequestInit) => void;
   onResponse?: (url: string, status: number, body: unknown) => void;
+  autoRefresh?: AutoRefreshOptions;
 }
 
 // ── Token types ─────────────────────────────────────────────────
@@ -220,6 +226,13 @@ export class MachineAuthClient {
   private retryBaseMs: number;
   private onRequest?: (url: string, init: RequestInit) => void;
   private onResponse?: (url: string, status: number, body: unknown) => void;
+  
+  // Token caching for auto-refresh
+  private cachedToken?: TokenResponse;
+  private tokenExpiryTime?: number;
+  private autoRefresh?: AutoRefreshOptions;
+  private refreshTimer?: ReturnType<typeof setTimeout>;
+  private tokenRefreshInProgress?: Promise<TokenResponse>;
 
   constructor(options: ClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? 'http://localhost:8081').replace(/\/+$/, '');
@@ -232,6 +245,101 @@ export class MachineAuthClient {
     this.retryBaseMs = options.retryBaseMs ?? 500;
     this.onRequest = options.onRequest;
     this.onResponse = options.onResponse;
+    this.autoRefresh = options.autoRefresh;
+  }
+
+  // ── Auto-refresh helpers ───────────────────────────────────────
+
+  private isTokenExpiringSoon(): boolean {
+    if (!this.autoRefresh?.enabled || !this.tokenExpiryTime) return false;
+    const bufferMs = (this.autoRefresh.refreshBufferSeconds ?? 60) * 1000;
+    return Date.now() + bufferMs >= this.tokenExpiryTime;
+  }
+
+  private async refreshTokenIfNeeded(providedToken?: string): Promise<string> {
+    if (providedToken || !this.autoRefresh?.enabled || !this.cachedToken) {
+      return providedToken ?? this.defaultToken ?? '';
+    }
+
+    if (this.tokenRefreshInProgress) {
+      const token = await this.tokenRefreshInProgress;
+      return token.access_token;
+    }
+
+    if (!this.isTokenExpiringSoon()) {
+      return this.cachedToken.access_token;
+    }
+
+    const refreshPromise = this.doRefreshToken();
+    this.tokenRefreshInProgress = refreshPromise;
+    try {
+      const token = await refreshPromise;
+      return token.access_token;
+    } finally {
+      this.tokenRefreshInProgress = undefined;
+    }
+  }
+
+  private async doRefreshToken(): Promise<TokenResponse> {
+    if (!this.clientId || !this.clientSecret) {
+      throw new Error('clientId and clientSecret are required for auto-refresh');
+    }
+    const form = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+    });
+    if (this.cachedToken?.scope) {
+      form.set('scope', this.cachedToken.scope);
+    }
+    const token = await this.request<TokenResponse>('/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
+    this.setCachedToken(token);
+    return token;
+  }
+
+  private setCachedToken(token: TokenResponse): void {
+    this.cachedToken = token;
+    this.defaultToken = token.access_token;
+    const expiresIn = token.expires_in ?? 3600;
+    this.tokenExpiryTime = Date.now() + expiresIn * 1000;
+    this.scheduleAutoRefresh(expiresIn);
+  }
+
+  private scheduleAutoRefresh(expiresIn: number): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+    if (!this.autoRefresh?.enabled) return;
+    const bufferSeconds = this.autoRefresh.refreshBufferSeconds ?? 60;
+    const refreshMs = (expiresIn - bufferSeconds) * 1000;
+    if (refreshMs > 0) {
+      this.refreshTimer = setTimeout(() => {
+        if (this.isTokenExpiringSoon()) {
+          this.doRefreshToken().catch(err => {
+            console.error('Auto-refresh failed:', err);
+          });
+        }
+      }, refreshMs);
+    }
+  }
+
+  /** Force refresh the token immediately. */
+  async forceTokenRefresh(): Promise<TokenResponse> {
+    return this.doRefreshToken();
+  }
+
+  /** Get the current cached token if available. */
+  getCachedToken(): TokenResponse | undefined {
+    return this.cachedToken;
+  }
+
+  /** Check if auto-refresh is enabled and token is expiring soon. */
+  isAutoRefreshEnabled(): boolean {
+    return this.autoRefresh?.enabled ?? false;
   }
 
   /** Create a client from MACHINEAUTH_* environment variables (Node.js). */
@@ -276,7 +384,7 @@ export class MachineAuthClient {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form.toString(),
     });
-    this.defaultToken = token.access_token;
+    this.setCachedToken(token);
     return token;
   }
 
@@ -586,6 +694,23 @@ export class MachineAuthClient {
       if (attempt > 0) {
         const delay = this.retryBaseMs * Math.pow(2, attempt - 1);
         await new Promise(r => setTimeout(r, delay));
+      }
+
+      // Auto-refresh token if needed before making the request
+      const headers = { ...init.headers };
+      const authHeader = typeof headers === 'object' ? (headers as Record<string, string>)['Authorization'] : undefined;
+      const hasExplicitToken = typeof authHeader === 'string';
+      if (!hasExplicitToken && this.autoRefresh?.enabled) {
+        const token = await this.refreshTokenIfNeeded();
+        if (token) {
+          init = {
+            ...init,
+            headers: {
+              ...init.headers,
+              Authorization: `Bearer ${token}`,
+            },
+          };
+        }
       }
 
       const controller = new AbortController();
