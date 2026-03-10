@@ -1332,3 +1332,46 @@ func (p *PostgresDB) DeleteOrgSigningKey(id string) error {
 	}
 	return nil
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// OAuth Authorization Codes
+// ═══════════════════════════════════════════════════════════════════════
+
+func (p *PostgresDB) CreateAuthorizationCode(code AuthorizationCode) error {
+	_, err := p.pool.Exec(context.Background(),
+		`INSERT INTO oauth_authorization_codes 
+		(id, client_id, user_id, organization_id, redirect_uri, scope, 
+		code_challenge, code_challenge_method, code, expires_at, used, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+		code.ID, code.ClientID, code.UserID, code.OrganizationID,
+		code.RedirectURI, code.Scope, code.CodeChallenge,
+		code.CodeChallengeMethod, code.Code, code.ExpiresAt, code.Used, code.CreatedAt)
+	return err
+}
+
+func (p *PostgresDB) GetAuthorizationCode(code string) (*AuthorizationCode, error) {
+	var c AuthorizationCode
+	err := p.pool.QueryRow(context.Background(),
+		`SELECT id, client_id, user_id, organization_id, redirect_uri, scope,
+		code_challenge, code_challenge_method, code, expires_at, used, created_at
+		FROM oauth_authorization_codes WHERE code = $1`, code).Scan(
+		&c.ID, &c.ClientID, &c.UserID, &c.OrganizationID,
+		&c.RedirectURI, &c.Scope, &c.CodeChallenge,
+		&c.CodeChallengeMethod, &c.Code, &c.ExpiresAt, &c.Used, &c.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (p *PostgresDB) UseAuthorizationCode(id string) error {
+	tag, err := p.pool.Exec(context.Background(),
+		`UPDATE oauth_authorization_codes SET used = true WHERE id::text = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("authorization code not found")
+	}
+	return nil
+}

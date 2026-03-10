@@ -10,21 +10,22 @@ import (
 )
 
 type JSONDB struct {
-	mu                sync.RWMutex
-	filename          string
-	Agents            []Agent           `json:"agents"`
-	AdminUsers        []AdminUser       `json:"admin_users"`
-	AuditLogs         []AuditLog        `json:"audit_logs"`
-	RefreshTokens     []RefreshToken    `json:"refresh_tokens"`
-	RevokedTokens     []RevokedToken    `json:"revoked_tokens"`
-	Metrics           Metrics           `json:"metrics"`
-	Organizations     []Organization    `json:"organizations"`
-	Teams             []Team            `json:"teams"`
-	APIKeys           []APIKey          `json:"api_keys"`
-	WebhookConfigs    []WebhookConfig   `json:"webhook_configs"`
-	WebhookDeliveries []WebhookDelivery `json:"webhook_deliveries"`
-	OrgMembers        []OrgMember       `json:"org_members"`
-	OrgSigningKeys    []OrgSigningKey   `json:"org_signing_keys"`
+	mu                 sync.RWMutex
+	filename           string
+	Agents             []Agent             `json:"agents"`
+	AdminUsers         []AdminUser         `json:"admin_users"`
+	AuditLogs          []AuditLog          `json:"audit_logs"`
+	RefreshTokens      []RefreshToken      `json:"refresh_tokens"`
+	RevokedTokens      []RevokedToken      `json:"revoked_tokens"`
+	Metrics            Metrics             `json:"metrics"`
+	Organizations      []Organization      `json:"organizations"`
+	Teams              []Team              `json:"teams"`
+	APIKeys            []APIKey            `json:"api_keys"`
+	WebhookConfigs     []WebhookConfig     `json:"webhook_configs"`
+	WebhookDeliveries  []WebhookDelivery   `json:"webhook_deliveries"`
+	OrgMembers         []OrgMember         `json:"org_members"`
+	OrgSigningKeys     []OrgSigningKey     `json:"org_signing_keys"`
+	AuthorizationCodes []AuthorizationCode `json:"authorization_codes"`
 }
 
 // AdminUser stored in JSON DB.
@@ -1101,4 +1102,39 @@ func (db *DB) DeleteOrgSigningKey(id string) error {
 		}
 	}
 	return fmt.Errorf("signing key not found")
+}
+
+// ── OAuth Authorization Code methods ───────────────────────────────────
+
+func (db *DB) CreateAuthorizationCode(code AuthorizationCode) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	db.AuthorizationCodes = append(db.AuthorizationCodes, code)
+	return db.Save()
+}
+
+func (db *DB) GetAuthorizationCode(code string) (*AuthorizationCode, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for i := range db.AuthorizationCodes {
+		c := &db.AuthorizationCodes[i]
+		if c.Code == code {
+			return c, nil
+		}
+	}
+	return nil, fmt.Errorf("authorization code not found")
+}
+
+func (db *DB) UseAuthorizationCode(id string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	for i := range db.AuthorizationCodes {
+		if db.AuthorizationCodes[i].ID.String() == id {
+			db.AuthorizationCodes[i].Used = true
+			return db.Save()
+		}
+	}
+	return fmt.Errorf("authorization code not found")
 }
