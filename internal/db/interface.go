@@ -1,6 +1,26 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// AuthorizationCode represents an OAuth 2.0 authorization code.
+type AuthorizationCode struct {
+	ID                  uuid.UUID `json:"id"`
+	ClientID            string    `json:"client_id"`
+	UserID              string    `json:"user_id"`
+	OrganizationID      string    `json:"organization_id"`
+	RedirectURI         string    `json:"redirect_uri"`
+	Scope               string    `json:"scope"`
+	CodeChallenge       string    `json:"code_challenge,omitempty"`
+	CodeChallengeMethod string    `json:"code_challenge_method,omitempty"`
+	Code                string    `json:"-"`
+	ExpiresAt           time.Time `json:"expires_at"`
+	Used                bool      `json:"used"`
+	CreatedAt           time.Time `json:"created_at"`
+}
 
 // Database defines the storage interface that all backends must implement.
 // Both JSONDB (development) and PostgresDB (production) satisfy this.
@@ -109,4 +129,10 @@ type Database interface {
 	GetActiveOrgSigningKey(orgID string) (*OrgSigningKey, error)
 	ListOrgSigningKeys(orgID string) ([]OrgSigningKey, error)
 	DeleteOrgSigningKey(id string) error
+
+	// ── OAuth Authorization Codes ─────────────────────────────────────
+
+	CreateAuthorizationCode(code AuthorizationCode) error
+	GetAuthorizationCode(code string) (*AuthorizationCode, error)
+	UseAuthorizationCode(id string) error
 }

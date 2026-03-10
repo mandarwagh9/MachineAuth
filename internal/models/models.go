@@ -31,6 +31,9 @@ type Agent struct {
 	PublicKey         *string                `json:"public_key,omitempty"`
 	Status            AgentStatus            `json:"status"`
 	IsActive          bool                   `json:"is_active"`
+	RedirectURIs      []string               `json:"redirect_uris,omitempty"`
+	GrantTypes        []string               `json:"grant_types,omitempty"`
+	ClientType        string                 `json:"client_type,omitempty"`
 	CreatedAt         time.Time              `json:"created_at"`
 	UpdatedAt         time.Time              `json:"updated_at"`
 	ExpiresAt         *time.Time             `json:"expires_at,omitempty"`
@@ -65,6 +68,9 @@ type CreateAgentRequest struct {
 	TeamID         *uuid.UUID             `json:"team_id,omitempty"`
 	Scopes         []string               `json:"scopes,omitempty"`
 	ExpiresIn      *int                   `json:"expires_in,omitempty"`
+	RedirectURIs   []string               `json:"redirect_uris,omitempty"`
+	GrantTypes     []string               `json:"grant_types,omitempty"`
+	ClientType     string                 `json:"client_type,omitempty"`
 }
 
 type UpdateAgentRequest struct {
@@ -118,6 +124,9 @@ type TokenRequest struct {
 	ClientSecret string `json:"client_secret"`
 	Scope        string `json:"scope"`
 	RefreshToken string `json:"refresh_token"`
+	Code         string `json:"code"`
+	RedirectURI  string `json:"redirect_uri"`
+	CodeVerifier string `json:"code_verifier"`
 }
 
 type TokenResponse struct {
@@ -474,4 +483,44 @@ type TestWebhookResponse struct {
 	Success    bool   `json:"success"`
 	StatusCode int    `json:"status_code"`
 	Error      string `json:"error,omitempty"`
+}
+
+// AuthorizationCode represents an OAuth 2.0 authorization code.
+type AuthorizationCode struct {
+	ID                  uuid.UUID `json:"id"`
+	ClientID            string    `json:"client_id"`
+	UserID              string    `json:"user_id"`
+	OrganizationID      string    `json:"organization_id"`
+	RedirectURI         string    `json:"redirect_uri"`
+	Scope               string    `json:"scope"`
+	CodeChallenge       string    `json:"code_challenge,omitempty"`
+	CodeChallengeMethod string    `json:"code_challenge_method,omitempty"`
+	Code                string    `json:"-"`
+	ExpiresAt           time.Time `json:"expires_at"`
+	Used                bool      `json:"used"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
+// AuthorizeRequest represents the OAuth 2.0 authorization request parameters.
+type AuthorizeRequest struct {
+	ResponseType        string `json:"response_type"`
+	ClientID            string `json:"client_id"`
+	RedirectURI         string `json:"redirect_uri"`
+	Scope               string `json:"scope"`
+	State               string `json:"state"`
+	CodeChallenge       string `json:"code_challenge"`
+	CodeChallengeMethod string `json:"code_challenge_method"`
+}
+
+// AuthorizeResponse represents the OAuth 2.0 authorization response.
+type AuthorizeResponse struct {
+	Code  string `json:"code"`
+	State string `json:"state,omitempty"`
+}
+
+// AuthorizeErrorResponse represents an OAuth 2.0 authorization error.
+type AuthorizeErrorResponse struct {
+	Error       string `json:"error"`
+	Description string `json:"error_description,omitempty"`
+	State       string `json:"state,omitempty"`
 }
