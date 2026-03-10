@@ -64,6 +64,7 @@ func (h *OIDCHandler) Discovery(w http.ResponseWriter, r *http.Request) {
 		IDTokenSigningAlgValuesSupported:  []string{"RS256"},
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "jti", "scope", "agent_id", "org_id", "team_id", "name", "auth_time", "at_hash"},
+		CodeChallengeMethodsSupported:     []string{"S256"},
 		ServiceDocumentation:              baseURL + "/docs",
 	}
 
@@ -152,6 +153,7 @@ func (h *OIDCHandler) OrgDiscovery(w http.ResponseWriter, r *http.Request, orgSl
 		IDTokenSigningAlgValuesSupported:  []string{"RS256"},
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_basic"},
 		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "jti", "scope", "agent_id", "org_id", "team_id", "name", "auth_time", "at_hash"},
+		CodeChallengeMethodsSupported:     []string{"S256"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
