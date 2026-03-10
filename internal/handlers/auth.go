@@ -19,6 +19,7 @@ type AuthHandler struct {
 	agentService *services.AgentService
 	tokenService *services.TokenService
 	adminService *services.AdminService
+	oauthService *services.OAuthService
 	cfg          *config.Config
 
 	// Brute-force tracking: map[key] -> {failures, lockedUntil}
@@ -49,6 +50,12 @@ func NewAuthHandler(agentService *services.AgentService, tokenService *services.
 // break the initialization ordering dependency).
 func (h *AuthHandler) SetAdminService(adminService *services.AdminService) {
 	h.adminService = adminService
+}
+
+// SetOAuthService sets the OAuth service (called after construction to
+// break the initialization ordering dependency).
+func (h *AuthHandler) SetOAuthService(oauthService *services.OAuthService) {
+	h.oauthService = oauthService
 }
 
 // checkBruteForce returns true if the key is currently locked out.
@@ -130,10 +137,13 @@ func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
 		tokenReq.ClientSecret = r.Form.Get("client_secret")
 		tokenReq.Scope = r.Form.Get("scope")
 		tokenReq.RefreshToken = r.Form.Get("refresh_token")
+		tokenReq.Code = r.Form.Get("code")
+		tokenReq.RedirectURI = r.Form.Get("redirect_uri")
+		tokenReq.CodeVerifier = r.Form.Get("code_verifier")
 	}
 
-	if tokenReq.GrantType != "client_credentials" && tokenReq.GrantType != "refresh_token" {
-		h.writeError(w, "unsupported_grant_type", "grant_type must be client_credentials or refresh_token")
+	if tokenReq.GrantType != "client_credentials" && tokenReq.GrantType != "refresh_token" && tokenReq.GrantType != "authorization_code" {
+		h.writeError(w, "unsupported_grant_type", "grant_type must be client_credentials, refresh_token, or authorization_code")
 		return
 	}
 
@@ -169,6 +179,67 @@ func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.agentService.RecordTokenRefresh(agent.ID)
+	} else if tokenReq.GrantType == "authorization_code" {
+		if h.oauthService == nil {
+			h.writeError(w, "server_error", "OAuth service not configured")
+			return
+		}
+
+		if tokenReq.Code == "" {
+			h.writeError(w, "invalid_request", "code is required")
+			return
+		}
+
+		if tokenReq.RedirectURI == "" {
+			h.writeError(w, "invalid_request", "redirect_uri is required")
+			return
+		}
+
+		code, err := h.oauthService.ValidateAuthorizationCode(tokenReq.Code, tokenReq.RedirectURI)
+		if err != nil {
+			log.Printf("failed to validate authorization code: %v", err)
+			h.writeError(w, "invalid_grant", "invalid or expired authorization code")
+			return
+		}
+
+		if code.CodeChallenge != "" {
+			if err := h.oauthService.ValidateCodeVerifier(
+				tokenReq.CodeVerifier,
+				code.CodeChallenge,
+				code.CodeChallengeMethod,
+			); err != nil {
+				log.Printf("failed to validate code verifier: %v", err)
+				h.writeError(w, "invalid_grant", "invalid code_verifier")
+				return
+			}
+		}
+
+		if err := h.oauthService.ConsumeAuthorizationCode(code.ID); err != nil {
+			log.Printf("failed to consume authorization code: %v", err)
+			h.writeError(w, "server_error", "failed to consume authorization code")
+			return
+		}
+
+		agent, err = h.agentService.GetByClientID(code.ClientID)
+		if err != nil {
+			log.Printf("failed to get agent: %v", err)
+			h.writeError(w, "invalid_grant", "client not found")
+			return
+		}
+
+		if !agent.IsActive {
+			h.writeError(w, "invalid_grant", "client is inactive")
+			return
+		}
+
+		user, err := h.adminService.GetUserByID(code.UserID)
+		if err != nil {
+			log.Printf("failed to get user: %v", err)
+			h.writeError(w, "invalid_grant", "user not found")
+			return
+		}
+
+		_ = user
 	}
 
 	tokenResp, err := h.tokenService.GenerateToken(agent, tokenReq.Scope)
@@ -194,6 +265,20 @@ func (h *AuthHandler) Token(w http.ResponseWriter, r *http.Request) {
 			log.Printf("failed to rotate refresh token: %v", err)
 		} else {
 			tokenResp.RefreshToken = refreshToken
+		}
+	} else if tokenReq.GrantType == "authorization_code" {
+		// Generate ID token for authorization_code grant
+		if h.oauthService != nil {
+			code, _ := h.oauthService.ValidateAuthorizationCode(tokenReq.Code, tokenReq.RedirectURI)
+			if code != nil {
+				user, _ := h.adminService.GetUserByID(code.UserID)
+				if user != nil {
+					idToken, err := h.oauthService.GenerateIDToken(user.ID, user.Email, code.OrganizationID, code.ClientID)
+					if err == nil {
+						tokenResp.IDToken = idToken
+					}
+				}
+			}
 		}
 	}
 
