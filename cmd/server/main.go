@@ -48,6 +48,7 @@ func main() {
 	teamService := services.NewTeamService(database)
 	apiKeyService := services.NewAPIKeyService(database)
 	webhookService := services.NewWebhookService(database)
+	oauthService := services.NewOAuthService(cfg, database, tokenService)
 
 	// Admin service — uses the same RSA key for signing admin JWTs.
 	adminService := services.NewAdminService(cfg, database, tokenService.PrivateKey(), tokenService.KeyID())
@@ -65,6 +66,8 @@ func main() {
 
 	authHandler := handlers.NewAuthHandler(agentService, tokenService, cfg)
 	authHandler.SetAdminService(adminService)
+	authHandler.SetOAuthService(oauthService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, agentService, adminService)
 	agentsHandler := handlers.NewAgentsHandler(agentService, auditService)
 	agentSelfHandler := handlers.NewAgentSelfHandler(agentService)
 	orgHandler := handlers.NewOrganizationHandler(orgService, teamService)
@@ -128,6 +131,7 @@ func main() {
 	mux.Handle("/oauth/revoke", oauthRL(http.HandlerFunc(authHandler.Revoke)))
 	mux.Handle("/oauth/refresh", oauthRL(http.HandlerFunc(authHandler.Refresh)))
 	mux.Handle("/oauth/userinfo", jwtAuth(http.HandlerFunc(oidcHandler.UserInfo)))
+	mux.Handle("/oauth/authorize", oauthRL(adminAuth(http.HandlerFunc(oauthHandler.Authorize))))
 
 	// ── Admin auth endpoint (public, aggressively rate-limited) ────────
 
