@@ -1,0 +1,125 @@
+export const metadata = {
+  title: 'Docker Deployment - MachineAuth Docs',
+  description: 'Deploy MachineAuth using Docker.',
+};
+
+# Docker Deployment
+
+Run MachineAuth in Docker for easy deployment.
+
+## Quick Start
+
+```bash
+# Run with JSON storage
+docker run -p 8080:8080 ghcr.io/mandarwagh9/machineauth:latest
+```
+
+## With PostgreSQL
+
+```bash
+docker run -p 8080:8080 \
+  -e DATABASE_URL=postgresql://user:pass@db:5432/machineauth \
+  ghcr.io/mandarwagh9/machineauth:latest
+```
+
+## Docker Compose
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  server:
+    image: ghcr.io/mandarwagh9/machineauth:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:secret@postgres:5432/machineauth
+      - ADMIN_EMAIL=admin@example.com
+      - ADMIN_PASSWORD=changeme
+      - JWT_ACCESS_TOKEN_EXPIRY=3600
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: machineauth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+Start:
+
+```bash
+docker-compose up -d
+```
+
+## Build Your Own Image
+
+```dockerfile
+FROM ghcr.io/mandarwagh9/machineauth:latest
+
+# Add custom configuration
+COPY .env /app/.env
+
+CMD ["./server"]
+```
+
+## Production Considerations
+
+### Use Named Volumes
+
+```yaml
+volumes:
+  - machineauth_data:/data
+```
+
+### Set Resource Limits
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '0.5'
+      memory: 512M
+```
+
+### Health Check
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
+
+## Networking
+
+### Behind a Reverse Proxy
+
+```yaml
+server:
+  image: ghcr.io/mandarwagh9/machineauth:latest
+  environment:
+    - ALLOWED_ORIGINS=https://yourdomain.com
+```
+
+Then configure Nginx:
+
+```nginx
+location / {
+  proxy_pass http://server:8080;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+}
+```

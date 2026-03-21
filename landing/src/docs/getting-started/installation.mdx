@@ -1,0 +1,120 @@
+export const metadata = {
+  title: 'Installation - MachineAuth Docs',
+  description: 'Install MachineAuth using Docker, binary, or from source.',
+};
+
+# Installation
+
+Choose your preferred deployment method.
+
+## Docker (Recommended)
+
+The easiest way to run MachineAuth:
+
+```bash
+# Quick start with JSON storage
+docker run -p 8080:8080 ghcr.io/mandarwagh9/machineauth:latest
+
+# With PostgreSQL
+docker run -p 8080:8080 \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/machineauth \
+  ghcr.io/mandarwagh9/machineauth:latest
+```
+
+### Docker Compose
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  server:
+    image: ghcr.io/mandarwagh9/machineauth:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=json:machineauth.json
+      - ADMIN_EMAIL=admin@example.com
+      - ADMIN_PASSWORD=changeme
+    volumes:
+      - ./data:/data
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: machineauth
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: machineauth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+
+Run:
+
+```bash
+docker-compose up -d
+```
+
+## Binary
+
+Download the latest release from [GitHub Releases](https://github.com/mandarwagh9/MachineAuth/releases):
+
+```bash
+# Linux
+wget https://github.com/mandarwagh9/MachineAuth/releases/latest/download/server-linux-amd64
+chmod +x server-linux-amd64
+./server-linux-amd64
+
+# macOS
+curl -LO https://github.com/mandarwagh9/MachineAuth/releases/latest/download/server-darwin-arm64
+chmod +x server-darwin-arm64
+./server-darwin-arm64
+
+# Windows
+# Download server-windows-amd64.exe from releases
+```
+
+## From Source
+
+Requirements: **Go 1.21+**
+
+```bash
+git clone https://github.com/mandarwagh9/MachineAuth.git
+cd MachineAuth
+go build -o machineauth ./cmd/server
+./machineauth
+```
+
+## Configuration
+
+MachineAuth uses environment variables. Create a `.env` file:
+
+```env
+PORT=8080
+ENV=development
+DATABASE_URL=json:machineauth.json
+JWT_ACCESS_TOKEN_EXPIRY=3600
+ALLOWED_ORIGINS=http://localhost:3000
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=changeme
+```
+
+See [Environment Variables](/docs/deployment/environment) for all options.
+
+## Verify Installation
+
+```bash
+curl http://localhost:8080/health
+```
+
+Response:
+
+```json
+{
+  "status": "ok"
+}
+```

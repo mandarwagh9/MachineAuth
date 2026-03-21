@@ -1,0 +1,99 @@
+export const metadata = {
+  title: 'API Keys API - MachineAuth Docs',
+  description: 'Organization API key management endpoints.',
+};
+
+# API Keys API
+
+## POST /api/organizations/:org_id/api-keys
+
+Create an API key.
+
+**Auth:** Admin
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/api/organizations/org_abc123/api-keys \
+  -H "Content-Type: application/json" \
+  -u admin@example.com:changeme \
+  -d '{
+    "name": "Production Key",
+    "team_id": "team_xyz789",
+    "expires_in": 86400
+  }'
+```
+
+**Response (201):**
+
+```json
+{
+  "api_key": {
+    "id": "key_123",
+    "name": "Production Key",
+    "prefix": "mach_abc123de",
+    "is_active": true,
+    "expires_at": "2026-03-02T12:00:00Z"
+  },
+  "key": "mach_abc123def456..."
+}
+```
+
+> **Important:** The full key is only shown once!
+
+---
+
+## GET /api/organizations/:org_id/api-keys
+
+List API keys.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "api_keys": [
+    {
+      "id": "key_123",
+      "name": "Production Key",
+      "prefix": "mach_abc123de",
+      "is_active": true,
+      "last_used_at": "2026-03-01T12:00:00Z",
+      "created_at": "2026-03-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## DELETE /api/organizations/:org_id/api-keys/:key_id
+
+Revoke an API key.
+
+**Auth:** Admin
+
+**Response:** 204 No Content
+
+---
+
+## Using API Keys
+
+API keys can be used instead of JWT tokens:
+
+```bash
+curl http://localhost:8080/api/verify \
+  -H "Authorization: Bearer mach_abc123def456..."
+```
+
+Response:
+
+```json
+{
+  "valid": true,
+  "api_key_id": "key_123",
+  "name": "Production Key",
+  "organization_id": "org_abc123"
+}
+```

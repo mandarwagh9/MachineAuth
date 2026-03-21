@@ -1,0 +1,109 @@
+export const metadata = {
+  title: 'Binary Deployment - MachineAuth Docs',
+  description: 'Deploy MachineAuth using pre-built binaries.',
+};
+
+# Binary Deployment
+
+Run MachineAuth as a standalone binary.
+
+## Download
+
+Get the latest release from [GitHub Releases](https://github.com/mandarwagh9/MachineAuth/releases):
+
+```bash
+# Linux (x86_64)
+wget https://github.com/mandarwagh9/MachineAuth/releases/latest/download/server-linux-amd64
+chmod +x server-linux-amd64
+mv server-linux-amd64 machineauth
+
+# Linux (ARM64)
+wget https://github.com/mandarwagh9/MachineAuth/releases/latest/download/server-linux-arm64
+chmod +x server-linux-arm64
+
+# macOS (Intel)
+wget https://github.com/mandarwagh9/MachineAuth/releases/latest/download/server-darwin-amd64
+chmod +x server-darwin-amd64
+
+# macOS (Apple Silicon)
+wget https://github.com/mandarwagh9/MachineAuth/releases/latest/download/server-darwin-arm64
+chmod +x server-darwin-arm64
+
+# Windows
+# Download server-windows-amd64.exe from releases
+```
+
+## Run
+
+```bash
+./machineauth
+```
+
+Server starts on `http://localhost:8080`
+
+## Configuration
+
+Create a `.env` file:
+
+```env
+PORT=8080
+ENV=production
+DATABASE_URL=json:machineauth.json
+JWT_ACCESS_TOKEN_EXPIRY=3600
+ALLOWED_ORIGINS=https://yourdomain.com
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=secure_password_here
+```
+
+Run with env file:
+
+```bash
+./machineauth
+# Or specify env file:
+./machineauth --env-file .env
+```
+
+## Build from Source
+
+Requirements: **Go 1.21+**
+
+```bash
+git clone https://github.com/mandarwagh9/MachineAuth.git
+cd MachineAuth
+go build -o machineauth ./cmd/server
+./machineauth
+```
+
+## Systemd Service (Linux)
+
+Create `/etc/systemd/system/machineauth.service`:
+
+```ini
+[Unit]
+Description=MachineAuth - OAuth for AI Agents
+After=network.target
+
+[Service]
+Type=simple
+User=machineauth
+WorkingDirectory=/opt/machineauth
+ExecStart=/opt/machineauth/machineauth
+EnvironmentFile=/opt/machineauth/.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Install:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable machineauth
+sudo systemctl start machineauth
+```
+
+## Docker in Production
+
+For production, we recommend Docker even when running locally. See [Docker Deployment](/docs/deployment/docker).

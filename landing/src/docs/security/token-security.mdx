@@ -1,0 +1,124 @@
+export const metadata = {
+  title: 'Token Security - MachineAuth Docs',
+  description: 'Best practices for token security.',
+};
+
+# Token Security
+
+Best practices for managing JWT tokens.
+
+## Token Lifetimes
+
+| Token Type | Default | Recommendation |
+|------------|---------|----------------|
+| Access Token | 1 hour | 15-60 minutes |
+| Refresh Token | 7 days | 7-30 days |
+
+Set in environment:
+
+```env
+JWT_ACCESS_TOKEN_EXPIRY=3600  # 1 hour
+```
+
+## Secure Token Storage
+
+### Client-Side
+
+Never store tokens in localStorage for sensitive applications.
+
+```javascript
+// Use httpOnly cookies instead
+// Server sets: Set-Cookie: token=...; HttpOnly; Secure; SameSite=Strict
+```
+
+### Server-Side
+
+```python
+# Use secure storage
+token_store = {
+    'access_token': encrypted_token,
+    'refresh_token': encrypted_refresh
+}
+```
+
+## Token Refresh
+
+Refresh tokens before expiry:
+
+```typescript
+// Refresh 5 minutes before expiry
+const refreshIfNeeded = async () => {
+  const expiresIn = token.exp - Date.now() / 1000;
+  if (expiresIn < 300) {
+    token = await client.refreshToken(token.refresh_token);
+  }
+};
+```
+
+## Token Revocation
+
+Revoke compromised tokens immediately:
+
+```bash
+curl -X POST http://localhost:8080/oauth/revoke \
+  -H "Content-Type: application/json" \
+  -d '{"token": "COMPROMISED_TOKEN"}'
+```
+
+## Scopes
+
+Use minimal scopes:
+
+```json
+{
+  "scope": "read"  // Only what's needed
+}
+```
+
+## Token Claims
+
+MachineAuth tokens include:
+
+```json
+{
+  "sub": "client_id",
+  "agent_id": "uuid",
+  "org_id": "org_123",
+  "team_id": "team_456",
+  "scope": ["read", "write"],
+  "exp": 1709308800,
+  "iat": 1709305200
+}
+```
+
+Use claims for authorization:
+
+```python
+def has_permission(token, required_scope):
+    return required_scope in token['scope']
+
+def get_org_id(token):
+    return token.get('org_id')
+```
+
+## JWKS Verification
+
+Verify tokens using JWKS:
+
+```python
+import jwt
+
+# Fetch JWKS
+jwks = requests.get('https://auth.yourdomain.com/.well-known/jwks.json')
+
+# Get public key
+public_key = jwt.algorithms.RSA.from_jwk(jwks['keys'][0])
+
+# Verify token
+decoded = jwt.decode(
+    token,
+    public_key,
+    algorithms=['RS256'],
+    audience='machineauth-api'
+)
+```

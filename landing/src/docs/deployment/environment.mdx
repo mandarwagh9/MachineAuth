@@ -1,0 +1,80 @@
+export const metadata = {
+  title: 'Environment Variables - MachineAuth Docs',
+  description: 'All MachineAuth configuration options.',
+};
+
+# Environment Variables
+
+Configure MachineAuth using environment variables.
+
+## Server
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | Server listen port |
+| `ENV` | `development` | Environment (`development` or `production`) |
+
+## Database
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `json:machineauth.json` | Database connection |
+
+Storage backends:
+- `json:filename.json` — JSON file (dev)
+- `postgresql://user:pass@host:5432/db` — PostgreSQL
+
+## JWT
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SIGNING_ALGORITHM` | `RS256` | Signing algorithm |
+| `JWT_KEY_ID` | `key-1` | JWKS key identifier |
+| `JWT_ACCESS_TOKEN_EXPIRY` | `3600` (prod) / `86400` (dev) | Access token TTL (seconds) |
+| `JWT_ISSUER` | (server URL) | Token issuer |
+
+## Security
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ALLOWED_ORIGINS` | `http://localhost:3000` | CORS origins (comma-separated) |
+| `REQUIRE_HTTPS` | `false` | Enforce HTTPS |
+| `ADMIN_EMAIL` | `admin@example.com` | Admin email |
+| `ADMIN_PASSWORD` | `changeme` | Admin password |
+
+## Webhooks
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WEBHOOK_WORKER_COUNT` | `3` | Concurrent workers |
+| `WEBHOOK_MAX_RETRIES` | `10` | Max retry attempts |
+| `WEBHOOK_TIMEOUT_SECS` | `10` | Request timeout |
+
+## Example .env
+
+```env
+# Server
+PORT=8080
+ENV=production
+
+# Database
+DATABASE_URL=postgresql://machineauth:secret@db:5432/machineauth
+
+# JWT
+JWT_ACCESS_TOKEN_EXPIRY=1800
+
+# Security
+ALLOWED_ORIGINS=https://dashboard.yourdomain.com,https://api.yourdomain.com
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=your_secure_password
+
+# Webhooks
+WEBHOOK_WORKER_COUNT=5
+```
+
+## Development Quick Start
+
+```env
+DATABASE_URL=json:machineauth.json
+ADMIN_PASSWORD=changeme
+```

@@ -1,0 +1,59 @@
+export const metadata = {
+  title: 'SDKs Overview - MachineAuth Docs',
+  description: 'Official client libraries for MachineAuth.',
+};
+
+# SDKs Overview
+
+MachineAuth provides official SDKs for easy integration.
+
+## Available SDKs
+
+| Language | Package | Status |
+|----------|---------|--------|
+| TypeScript | `@machineauth/sdk` | Stable |
+| Python | `machineauth` | Stable |
+| Go | `github.com/mandarwagh9/machineauth` | Coming Soon |
+
+## Installation
+
+```bash
+# TypeScript
+npm install @machineauth/sdk
+
+# Python
+pip install machineauth
+```
+
+## Quick Example
+
+```typescript
+import { MachineAuthClient } from '@machineauth/sdk';
+
+const client = new MachineAuthClient({
+  baseUrl: 'https://auth.yourdomain.com',
+  clientId: 'cid_abc123...',
+  clientSecret: 'cs_secret...',
+});
+
+// Get token
+const token = await client.getToken({ scope: 'read write' });
+
+// Use token
+const agents = await client.listAgents();
+```
+
+## Features
+
+All SDKs provide:
+
+- Automatic token management
+- Type-safe interfaces
+- Promise/async support
+- Error handling
+- Configurable timeouts
+
+## Next Steps
+
+- [TypeScript SDK](/docs/sdks/typescript) — Full TypeScript reference
+- [Python SDK](/docs/sdks/python) — Full Python reference

@@ -1,0 +1,172 @@
+export const metadata = {
+  title: 'TypeScript SDK - MachineAuth Docs',
+  description: '@machineauth/sdk documentation.',
+};
+
+# TypeScript SDK
+
+Official TypeScript/JavaScript client library.
+
+## Installation
+
+```bash
+npm install @machineauth/sdk
+```
+
+## Configuration
+
+```typescript
+import { MachineAuthClient } from '@machineauth/sdk';
+
+const client = new MachineAuthClient({
+  baseUrl: 'http://localhost:8080',
+  clientId: 'cid_abc123...',
+  clientSecret: 'cs_secret...',
+  // Optional:
+  // scopes: ['read', 'write'],
+  // timeout: 30000,
+});
+```
+
+## Agent Management
+
+```typescript
+// List agents
+const agents = await client.listAgents();
+
+// Create agent
+const created = await client.createAgent({
+  name: 'my-agent',
+  scopes: ['read', 'write'],
+});
+
+// Get agent
+const agent = await client.getAgent('agent-id');
+
+// Rotate agent credentials
+const rotated = await client.rotateAgent('agent-id');
+
+// Delete agent
+await client.deleteAgent('agent-id');
+```
+
+## Token Operations
+
+```typescript
+// Get token
+const token = await client.getToken({ scope: 'read write' });
+console.log(token.access_token);
+
+// Refresh token
+const refreshed = await client.refreshToken('refresh_token');
+
+// Introspect token
+const info = await client.introspectToken('access_token');
+console.log(info.active);
+
+// Revoke token
+await client.revokeToken('access_token');
+```
+
+## Self-Service
+
+```typescript
+// Get own profile
+const me = await client.getMe();
+
+// Get usage stats
+const usage = await client.getMyUsage();
+
+// Rotate own credentials
+await client.rotateMe();
+
+// Deactivate self
+await client.deactivateMe();
+```
+
+## Organizations & Teams
+
+```typescript
+// List organizations
+const orgs = await client.listOrganizations();
+
+// Get organization
+const org = await client.getOrganization('org-id');
+
+// Create team
+const team = await client.createTeam('org-id', {
+  name: 'Engineering',
+  description: 'Backend team',
+});
+
+// List teams
+const teams = await client.listTeams('org-id');
+```
+
+## API Keys
+
+```typescript
+// List API keys
+const keys = await client.listApiKeys('org-id');
+
+// Create API key
+const created = await client.createApiKey('org-id', {
+  name: 'production-key',
+  expiresIn: 86400,
+});
+```
+
+## Webhooks
+
+```typescript
+// List webhooks
+const webhooks = await client.listWebhooks();
+
+// Create webhook
+const webhook = await client.createWebhook({
+  name: 'Notifications',
+  url: 'https://example.com/webhook',
+  events: ['agent.created', 'agent.deleted'],
+  maxRetries: 5,
+});
+
+// Test webhook
+await client.testWebhook('webhook-id');
+
+// Get deliveries
+const deliveries = await client.listDeliveries('webhook-id');
+```
+
+## Error Handling
+
+```typescript
+import { 
+  MachineAuthError, 
+  AuthenticationError,
+  ValidationError 
+} from '@machineauth/sdk';
+
+try {
+  const token = await client.getToken();
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    console.log('Invalid credentials');
+  } else if (error instanceof ValidationError) {
+    console.log('Validation failed:', error.message);
+  } else {
+    console.log('Unknown error:', error);
+  }
+}
+```
+
+## TypeScript Types
+
+```typescript
+import type { 
+  Agent, 
+  Token, 
+  Organization, 
+  Webhook,
+  WebhookDelivery 
+} from '@machineauth/sdk';
+```

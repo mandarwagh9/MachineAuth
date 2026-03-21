@@ -1,0 +1,181 @@
+export const metadata = {
+  title: 'Organizations API - MachineAuth Docs',
+  description: 'Organization and team management API endpoints.',
+};
+
+# Organizations API
+
+## POST /api/organizations
+
+Create an organization.
+
+**Auth:** Admin
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/api/organizations \
+  -H "Content-Type: application/json" \
+  -u admin@example.com:changeme \
+  -d '{
+    "name": "Acme Corp",
+    "slug": "acme",
+    "owner_email": "admin@acme.com"
+  }'
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "org_abc123",
+  "name": "Acme Corp",
+  "slug": "acme",
+  "owner_email": "admin@acme.com",
+  "plan": "free",
+  "created_at": "2026-03-01T12:00:00Z"
+}
+```
+
+---
+
+## GET /api/organizations
+
+List all organizations.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "organizations": [
+    {
+      "id": "org_abc123",
+      "name": "Acme Corp",
+      "slug": "acme",
+      "plan": "free"
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/organizations/:id
+
+Get an organization.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "id": "org_abc123",
+  "name": "Acme Corp",
+  "slug": "acme",
+  "owner_email": "admin@acme.com",
+  "plan": "free",
+  "created_at": "2026-03-01T12:00:00Z"
+}
+```
+
+---
+
+## PUT /api/organizations/:id
+
+Update an organization.
+
+**Auth:** Admin
+
+**Request:**
+
+```json
+{
+  "name": "Updated Name",
+  "jwt_expiry_secs": 7200
+}
+```
+
+---
+
+## DELETE /api/organizations/:id
+
+Delete an organization.
+
+**Auth:** Admin
+
+**Response:** 204 No Content
+
+---
+
+## Teams
+
+### POST /api/organizations/:org_id/teams
+
+Create a team.
+
+**Auth:** Admin
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/api/organizations/org_abc123/teams \
+  -H "Content-Type: application/json" \
+  -u admin@example.com:changeme \
+  -d '{
+    "name": "Engineering",
+    "description": "Backend services"
+  }'
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "team_xyz789",
+  "name": "Engineering",
+  "description": "Backend services",
+  "organization_id": "org_abc123",
+  "created_at": "2026-03-01T12:00:00Z"
+}
+```
+
+---
+
+### GET /api/organizations/:org_id/teams
+
+List teams.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "teams": [
+    {
+      "id": "team_xyz789",
+      "name": "Engineering",
+      "description": "Backend services"
+    }
+  ]
+}
+```
+
+---
+
+## Agents in Organization
+
+### GET /api/organizations/:org_id/agents
+
+List agents in org.
+
+**Auth:** Admin
+
+### POST /api/organizations/:org_id/agents
+
+Create agent in org.
+
+**Auth:** Admin

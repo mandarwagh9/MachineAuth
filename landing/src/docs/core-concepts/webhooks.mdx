@@ -1,0 +1,140 @@
+export const metadata = {
+  title: 'Webhooks - MachineAuth Docs',
+  description: 'Real-time event notifications with webhooks.',
+};
+
+# Webhooks
+
+MachineAuth sends **HTTP callbacks** when events occur.
+
+## Events
+
+| Event | Description |
+|-------|-------------|
+| `agent.created` | New agent created |
+| `agent.updated` | Agent updated |
+| `agent.deleted` | Agent deleted |
+| `agent.credentials_rotated` | Agent credentials rotated |
+| `token.issued` | New token issued |
+| `token.validation_success` | Token validated successfully |
+| `token.validation_failed` | Token validation failed |
+| `webhook.created` | Webhook created |
+| `webhook.updated` | Webhook updated |
+| `webhook.deleted` | Webhook deleted |
+| `webhook.test` | Test webhook triggered |
+
+## Create a Webhook
+
+```bash
+curl -X POST http://localhost:8080/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Prod Notifications",
+    "url": "https://yourapp.com/webhooks/machineauth",
+    "events": ["agent.created", "agent.deleted", "token.issued"],
+    "max_retries": 5
+  }'
+```
+
+Response:
+
+```json
+{
+  "webhook": {
+    "id": "webhook_123",
+    "name": "Prod Notifications",
+    "url": "https://yourapp.com/webhooks/machineauth",
+    "events": ["agent.created", "agent.deleted", "token.issued"],
+    "is_active": true,
+    "max_retries": 5
+  },
+  "secret": "whsec_abc123..."
+}
+```
+
+> **Important:** Save the `secret` — it's only shown once!
+
+## Webhook Payload
+
+```json
+{
+  "id": "evt_123",
+  "type": "agent.created",
+  "timestamp": "2026-03-01T12:00:00Z",
+  "data": {
+    "agent_id": "550e8400-...",
+    "agent_name": "my-agent",
+    "client_id": "cid_abc123..."
+  }
+}
+```
+
+## Verify Signatures
+
+Verify webhook authenticity using HMAC-SHA256:
+
+```python
+import hmac
+import hashlib
+
+def verify_webhook(payload, signature, secret):
+    expected = hmac.new(
+        secret.encode(),
+        payload.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+
+## Delivery Status
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Not yet delivered |
+| `delivered` | Successful (2xx response) |
+| `failed` | Failed after all retries |
+| `retrying` | Waiting for retry |
+| `dead` | Max retries exceeded |
+
+## View Deliveries
+
+```bash
+curl http://localhost:8080/api/webhooks/webhook_123/deliveries
+```
+
+Response:
+
+```json
+{
+  "deliveries": [
+    {
+      "id": "delivery_123",
+      "event": "agent.created",
+      "status": "delivered",
+      "attempts": 1,
+      "last_attempt_at": "2026-03-01T12:00:01Z"
+    }
+  ]
+}
+```
+
+## Test Webhook
+
+```bash
+curl -X POST http://localhost:8080/api/webhooks/webhook_123/test \
+  -H "Content-Type: application/json" \
+  -d '{"event": "webhook.test"}'
+```
+
+## Retry Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `max_retries` | 10 | Maximum delivery attempts |
+| `retry_backoff_base` | 2 | Exponential backoff base (seconds) |
+
+Backoff schedule: 2s, 4s, 8s, 16s, ...
+
+## Next Steps
+
+- [Webhooks API](/docs/api-reference/webhooks) — Full reference

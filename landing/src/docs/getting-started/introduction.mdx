@@ -1,0 +1,58 @@
+export const metadata = {
+  title: 'Introduction - MachineAuth Docs',
+  description: 'Learn what MachineAuth is and how it provides authentication for AI agents.',
+};
+
+# Introduction
+
+MachineAuth is a self-hosted **authentication platform for AI agents** and machine-to-machine (M2M) communication. It provides secure identity, permission, and access control for autonomous AI agents.
+
+## What is MachineAuth?
+
+MachineAuth implements **OAuth 2.0 Client Credentials** flow to issue short-lived JWT access tokens for AI agents. It's built for developers who need to:
+
+- Give AI agents controlled access to APIs without exposing long-lived API keys
+- Track and audit all agent activity
+- Rotate credentials without downtime
+- Isolate agents into organizations and teams
+
+## Why MachineAuth?
+
+Traditional authentication systems were designed for humans, not autonomous software. MachineAuth solves the unique challenges of AI agent authentication:
+
+| Problem | MachineAuth Solution |
+|---------|---------------------|
+| Long-lived API keys | Short-lived JWTs (configurable expiry) |
+| No credential rotation | One-click rotation, zero downtime |
+| No visibility into agent activity | Per-agent usage tracking, audit logs |
+| Complex auth infrastructure | Single binary, JSON file for dev, Postgres for prod |
+| No webhook notifications | Built-in webhook system with retry logic |
+
+## Key Features
+
+- **OAuth 2.0 Client Credentials** — Industry-standard M2M authentication
+- **RS256 JWT Tokens** — Asymmetrically signed with auto-generated RSA keys
+- **Credential Rotation** — Rotate secrets without service interruption
+- **Multi-Tenant Organizations** — Isolated orgs with teams and API keys
+- **Webhooks** — Real-time event notifications with exponential backoff
+- **Audit Logging** — Full history of all agent and token operations
+
+## Architecture
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Admin Dashboard │────▶│   Go Server  │────▶│  PostgreSQL   │
+│  (React + TS)   │     │  (net/http)  │     │  or JSON file │
+└─────────────────┘     └──────┬───────┘     └──────────────┘
+                               │
+                     ┌──────────┼──────────┐
+                     │          │          │
+               ┌─────▼──┐ ┌────▼───┐ ┌────▼────┐
+               │ Agents  │ │ Tokens │ │Webhooks │
+               │ Service │ │Service │ │ Worker  │
+               └────────┘ └────────┘ └─────────┘
+```
+
+## Next Steps
+
+Ready to get started? Head to the [Quick Start](/docs/getting-started/quickstart) guide to get MachineAuth running in 5 minutes.

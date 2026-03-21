@@ -1,0 +1,122 @@
+export const metadata = {
+  title: 'Security Best Practices - MachineAuth Docs',
+  description: 'Secure your MachineAuth deployment.',
+};
+
+# Security Best Practices
+
+Follow these recommendations to secure your MachineAuth deployment.
+
+## Change Default Credentials
+
+Always change the default admin credentials:
+
+```env
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=your_secure_password_here
+```
+
+## Use HTTPS
+
+In production, always use HTTPS:
+
+```nginx
+# Nginx configuration
+server {
+    listen 443 ssl http2;
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        proxy_pass http://localhost:8080;
+    }
+}
+```
+
+Set `REQUIRE_HTTPS=true` in environment.
+
+## Restrict CORS
+
+Limit allowed origins:
+
+```env
+ALLOWED_ORIGINS=https://dashboard.yourdomain.com
+```
+
+## Short Token Expiry
+
+Reduce token lifetime for sensitive workloads:
+
+```env
+JWT_ACCESS_TOKEN_EXPIRY=900  # 15 minutes
+```
+
+## Credential Rotation
+
+Regularly rotate agent credentials:
+
+```bash
+# Rotate via API
+curl -X POST http://localhost:8080/api/agents/AGENT_ID \
+  -H "Content-Type: application/json" \
+  -d '{"action": "rotate"}'
+```
+
+Implement automatic rotation in your agents.
+
+## Use PostgreSQL in Production
+
+JSON file storage is for development only:
+
+```env
+DATABASE_URL=postgresql://user:pass@host:5432/db
+```
+
+## Monitor Metrics
+
+Watch for anomalies:
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+## Webhook Security
+
+Verify webhook signatures:
+
+```python
+import hmac
+import hashlib
+
+def verify_webhook(payload, signature, secret):
+    expected = hmac.new(
+        secret.encode(),
+        payload.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+
+## Network Isolation
+
+Run in an isolated network:
+
+```yaml
+# docker-compose.yml
+services:
+  server:
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+```
+
+## Regular Updates
+
+Keep MachineAuth updated to get security patches:
+
+```bash
+docker pull ghcr.io/mandarwagh9/machineauth:latest
+```

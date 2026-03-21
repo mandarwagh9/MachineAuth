@@ -1,0 +1,179 @@
+export const metadata = {
+  title: 'Python SDK - MachineAuth Docs',
+  description: 'machineauth Python package documentation.',
+};
+
+# Python SDK
+
+Official Python client library.
+
+## Installation
+
+```bash
+pip install machineauth
+```
+
+## Quick Start
+
+```python
+from machineauth import MachineAuthClient
+
+client = MachineAuthClient(
+    base_url="http://localhost:8080",
+    client_id="cid_abc123...",
+    client_secret="cs_secret...",
+)
+
+# Get token
+token = client.get_token(scope="read write")
+print(token["access_token"])
+```
+
+## Async Support
+
+```python
+import asyncio
+from machineauth import AsyncMachineAuthClient
+
+async def main():
+    client = AsyncMachineAuthClient(
+        base_url="http://localhost:8080",
+        client_id="cid_abc123...",
+        client_secret="cs_secret...",
+    )
+    
+    token = await client.get_token(scope="read write")
+    print(token["access_token"])
+
+asyncio.run(main())
+```
+
+## Agent Management
+
+```python
+# List agents
+agents = client.list_agents()
+
+# Create agent
+created = client.create_agent(
+    name="my-agent",
+    scopes=["read", "write"],
+)
+
+# Get agent
+agent = client.get_agent("agent-id")
+
+# Rotate agent
+rotated = client.rotate_agent("agent-id")
+
+# Delete agent
+client.delete_agent("agent-id")
+```
+
+## Token Operations
+
+```python
+# Get token
+token = client.get_token(scope="read write")
+print(token["access_token"])
+
+# Refresh token
+refreshed = client.refresh_token("refresh_token")
+
+# Introspect token
+info = client.introspect_token("access_token")
+print(info["active"])
+
+# Revoke token
+client.revoke_token("access_token")
+```
+
+## Self-Service
+
+```python
+# Get own profile
+me = client.get_me()
+
+# Get usage
+usage = client.get_my_usage()
+
+# Rotate own credentials
+client.rotate_me()
+
+# Deactivate self
+client.deactivate_me()
+```
+
+## Organizations & Teams
+
+```python
+# List organizations
+orgs = client.list_organizations()
+
+# Get organization
+org = client.get_organization("org-id")
+
+# Create team
+team = client.create_team(
+    "org-id",
+    name="Engineering",
+    description="Backend team"
+)
+
+# List teams
+teams = client.list_teams("org-id")
+```
+
+## API Keys
+
+```python
+# List API keys
+keys = client.list_api_keys("org-id")
+
+# Create API key
+created = client.create_api_key(
+    "org-id",
+    name="production-key",
+    expires_in=86400,
+)
+print(created["key"])  # Full key shown once!
+```
+
+## Webhooks
+
+```python
+# List webhooks
+webhooks = client.list_webhooks()
+
+# Create webhook
+webhook = client.create_webhook(
+    name="Notifications",
+    url="https://example.com/webhook",
+    events=["agent.created", "agent.deleted"],
+)
+
+# Test webhook
+result = client.test_webhook("webhook-id")
+
+# Get deliveries
+deliveries = client.list_deliveries("webhook-id")
+```
+
+## Error Handling
+
+```python
+from machineauth import (
+    MachineAuthError,
+    AuthenticationError,
+    ValidationError,
+)
+
+try:
+    token = client.get_token()
+except AuthenticationError as e:
+    print(f"Invalid credentials: {e}")
+except ValidationError as e:
+    print(f"Validation failed: {e}")
+except MachineAuthError as e:
+    print(f"Error: {e}")
+```

@@ -1,0 +1,124 @@
+export const metadata = {
+  title: 'Multi-Tenancy - MachineAuth Docs',
+  description: 'Organizations, teams, and API keys for multi-tenant isolation.',
+};
+
+# Multi-Tenancy
+
+MachineAuth supports **organizations** and **teams** for tenant isolation.
+
+## Organizations
+
+An organization is a top-level tenant:
+
+```bash
+# Create organization
+curl -X POST http://localhost:8080/api/organizations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Corp",
+    "slug": "acme",
+    "owner_email": "admin@acme.com"
+  }'
+```
+
+Response:
+
+```json
+{
+  "id": "org_abc123",
+  "name": "Acme Corp",
+  "slug": "acme",
+  "owner_email": "admin@acme.com",
+  "plan": "free",
+  "created_at": "2026-03-01T12:00:00Z"
+}
+```
+
+## Teams
+
+Teams are groups within an organization:
+
+```bash
+# Create team
+curl -X POST http://localhost:8080/api/organizations/org_abc123/teams \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Engineering",
+    "description": "Backend services team"
+  }'
+```
+
+## Agent Organization Assignment
+
+Assign agents to orgs and teams:
+
+```bash
+curl -X POST http://localhost:8080/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "backend-agent",
+    "organization_id": "org_abc123",
+    "team_id": "team_xyz789",
+    "scopes": ["read", "write"]
+  }'
+```
+
+JWT tokens include org/team claims:
+
+```json
+{
+  "agent_id": "550e8400-...",
+  "org_id": "org_abc123",
+  "team_id": "team_xyz789",
+  "scope": ["read", "write"]
+}
+```
+
+## API Keys
+
+Organizations can have API keys for admin access:
+
+```bash
+# Create API key
+curl -X POST http://localhost:8080/api/organizations/org_abc123/api-keys \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "production-key",
+    "expires_in": 86400
+  }'
+```
+
+Response:
+
+```json
+{
+  "api_key": {
+    "id": "key_123",
+    "name": "production-key",
+    "prefix": "mach_abc123",
+    "is_active": true
+  },
+  "key": "mach_abc123def456..."
+}
+```
+
+Use API key instead of JWT:
+
+```bash
+curl http://localhost:8080/api/verify \
+  -H "Authorization: Bearer mach_abc123def456..."
+```
+
+## Use Cases
+
+| Scenario | Solution |
+|----------|----------|
+| SaaS product | Create org per customer |
+| Internal teams | Create org per department |
+| Multiple products | Create org per product |
+
+## Next Steps
+
+- [Organizations API](/docs/api-reference/organizations) — Full reference
+- [API Keys API](/docs/api-reference/api-keys) — Full reference

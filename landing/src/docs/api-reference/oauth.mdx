@@ -1,0 +1,165 @@
+export const metadata = {
+  title: 'OAuth Endpoints - MachineAuth Docs',
+  description: 'OAuth 2.0 token, introspect, and revoke endpoints.',
+};
+
+# OAuth Endpoints
+
+## POST /oauth/token
+
+Get an access token using client credentials.
+
+**Auth:** None
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "client_credentials",
+    "client_id": "cid_abc123...",
+    "client_secret": "cs_secret...",
+    "scope": "read write"
+  }'
+```
+
+**Response (200):**
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "read write",
+  "refresh_token": "rt_xyz789..."
+}
+```
+
+**Error (401):**
+
+```json
+{
+  "error": "invalid_client",
+  "error_description": "invalid client credentials"
+}
+```
+
+---
+
+## POST /oauth/refresh
+
+Refresh an access token.
+
+**Auth:** None
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/oauth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "refresh_token",
+    "refresh_token": "rt_xyz789..."
+  }'
+```
+
+**Response (200):**
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "rt_new123..."
+}
+```
+
+---
+
+## POST /oauth/introspect
+
+Validate a token.
+
+**Auth:** None
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/oauth/introspect \
+  -d "token=YOUR_ACCESS_TOKEN"
+```
+
+**Response (200) - Valid:**
+
+```json
+{
+  "active": true,
+  "scope": "read write",
+  "client_id": "cid_abc123...",
+  "exp": 1709308800,
+  "iat": 1709305200,
+  "token_type": "Bearer"
+}
+```
+
+**Response (200) - Invalid:**
+
+```json
+{
+  "active": false,
+  "reason": "revoked"
+}
+```
+
+---
+
+## POST /oauth/revoke
+
+Revoke a token.
+
+**Auth:** None
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/oauth/revoke \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "YOUR_ACCESS_TOKEN",
+    "token_type_hint": "access_token"
+  }'
+```
+
+**Response (200):**
+
+```json
+{
+  "status": "revoked"
+}
+```
+
+---
+
+## GET /.well-known/jwks.json
+
+Get public keys for token verification.
+
+**Auth:** None
+
+**Response (200):**
+
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "kid": "key-1",
+      "use": "sig",
+      "alg": "RS256",
+      "n": "base64_modulus...",
+      "e": "AQAB"
+    }
+  ]
+}
+```

@@ -1,0 +1,77 @@
+export const metadata = {
+  title: 'API Overview - MachineAuth Docs',
+  description: 'MachineAuth API overview and authentication.',
+};
+
+# API Overview
+
+MachineAuth provides a RESTful API at your server's base URL.
+
+## Base URL
+
+```
+http://localhost:8080
+```
+
+## Authentication
+
+Most endpoints require authentication:
+
+| Auth Type | Use Case |
+|----------|----------|
+| None | OAuth, health, JWKS |
+| Admin (Basic Auth) | Agent/org/webhook management |
+| Bearer Token | Agent self-service |
+
+### Admin Authentication
+
+Admin endpoints use Basic Auth:
+
+```bash
+curl -u admin@example.com:changeme \
+  http://localhost:8080/api/agents
+```
+
+### Bearer Token Authentication
+
+Agent self-service uses JWT Bearer token:
+
+```bash
+curl http://localhost:8080/api/agents/me \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+```
+
+## Response Format
+
+All responses are JSON:
+
+```json
+{
+  "field": "value"
+}
+```
+
+Error responses:
+
+```json
+{
+  "error": "error_code",
+  "error_description": "Human readable message"
+}
+```
+
+## Common Headers
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/json` |
+| `Accept` | `application/json` |
+
+## Rate Limits
+
+No rate limits by default. Configure via reverse proxy.
+
+## Next Steps
+
+- [OAuth Endpoints](/docs/api-reference/oauth) — Token endpoints
+- [Agents API](/docs/api-reference/agents) — Agent management

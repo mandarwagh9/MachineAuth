@@ -1,8 +1,6 @@
-<h1 align="center">
-  <br>
-  🔐 MachineAuth
-  <br>
-</h1>
+<p align="center">
+  <img src="machineauth-logo.png" alt="MachineAuth" width="400">
+</p>
 
 <p align="center">
   <strong>Authentication built for AI agents.</strong>
@@ -730,5 +728,9 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  Built for the AI agent ecosystem 🤖
+  <img src="machineauth-logo.png" alt="MachineAuth" width="120">
+</p>
+
+<p align="center">
+  Built for the AI agent ecosystem
 </p>

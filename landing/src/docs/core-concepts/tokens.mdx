@@ -1,0 +1,167 @@
+export const metadata = {
+  title: 'Tokens - MachineAuth Docs',
+  description: 'Understand JWT tokens, refresh tokens, and token management.',
+};
+
+# Tokens
+
+MachineAuth issues **RS256-signed JWTs** with configurable lifetimes.
+
+## Token Types
+
+| Token | Lifetime | Purpose |
+|-------|----------|---------|
+| Access Token | 1 hour (default) | API authentication |
+| Refresh Token | 7 days | Renew access token |
+
+## JWT Structure
+
+Tokens are JSON Web Tokens signed with RS256 (RSA SHA-256):
+
+```json
+{
+  "iss": "http://localhost:8080",
+  "sub": "cid_abc123...",
+  "agent_id": "550e8400-e29b-41d4-a716-446655440000",
+  "org_id": "org_123",
+  "team_id": "team_456",
+  "scope": ["read", "write"],
+  "aud": "machineauth-api",
+  "iat": 1709305200,
+  "exp": 1709308800,
+  "jti": "token_abc123"
+}
+```
+
+### Claims
+
+| Claim | Description |
+|-------|-------------|
+| `iss` | Issuer (your MachineAuth URL) |
+| `sub` | Subject (client_id) |
+| `agent_id` | Agent UUID |
+| `org_id` | Organization ID (if any) |
+| `team_id` | Team ID (if any) |
+| `scope` | Granted scopes |
+| `aud` | Audience (`machineauth-api`) |
+| `iat` | Issued at (Unix timestamp) |
+| `exp` | Expiration (Unix timestamp) |
+| `jti` | Unique token ID (for revocation) |
+
+## Token Lifetimes
+
+Configure in environment:
+
+```env
+JWT_ACCESS_TOKEN_EXPIRY=3600    # 1 hour (default)
+# JWT_REFRESH_TOKEN_EXPIRY=604800  # 7 days (fixed)
+```
+
+## Refresh Tokens
+
+Use refresh tokens to get new access tokens without re-authenticating:
+
+```bash
+curl -X POST http://localhost:8080/oauth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "refresh_token",
+    "refresh_token": "rt_xyz789..."
+  }'
+```
+
+Response:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "rt_new789..."
+}
+```
+
+A new refresh token is issued with each refresh.
+
+## Token Introspection
+
+Validate tokens via RFC 7662:
+
+```bash
+curl -X POST http://localhost:8080/oauth/introspect \
+  -d "token=YOUR_ACCESS_TOKEN"
+```
+
+Valid token response:
+
+```json
+{
+  "active": true,
+  "scope": "read write",
+  "client_id": "cid_abc123...",
+  "exp": 1709308800,
+  "iat": 1709305200,
+  "token_type": "Bearer"
+}
+```
+
+Invalid token response:
+
+```json
+{
+  "active": false,
+  "reason": "revoked"
+}
+```
+
+## Token Revocation
+
+Revoke tokens by ID:
+
+```bash
+curl -X POST http://localhost:8080/oauth/revoke \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "YOUR_ACCESS_TOKEN",
+    "token_type_hint": "access_token"
+  }'
+```
+
+Revoked tokens immediately fail introspection:
+
+```json
+{
+  "active": false,
+  "reason": "revoked"
+}
+```
+
+## JWKS
+
+Public keys for token verification:
+
+```bash
+curl http://localhost:8080/.well-known/jwks.json
+```
+
+Response:
+
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "kid": "key-1",
+      "use": "sig",
+      "alg": "RS256",
+      "n": "base64_modulus...",
+      "e": "AQAB"
+    }
+  ]
+}
+```
+
+## Next Steps
+
+- [Token Security](/docs/security/token-security) — Best practices
+- [OAuth API](/docs/api-reference/oauth) — Full reference

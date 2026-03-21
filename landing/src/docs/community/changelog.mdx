@@ -1,0 +1,77 @@
+export const metadata = {
+  title: 'Changelog - MachineAuth Docs',
+  description: 'MachineAuth version history and changes.',
+};
+
+# Changelog
+
+All notable changes to MachineAuth.
+
+## v2.12.61 (Latest)
+
+### Added
+- Multi-tenant organizations and teams
+- API key management for organizations
+- Webhook delivery tracking
+- Agent self-service endpoints
+- Audit logging
+
+### Changed
+- Improved token refresh flow
+- Better error messages
+- Performance improvements
+
+---
+
+## v2.12.0
+
+### Added
+- Webhook system with retries
+- Credential rotation
+- RS256 JWT signing
+
+### Changed
+- Migrated to Go 1.21+
+
+---
+
+## v2.11.0
+
+### Added
+- OAuth 2.0 Client Credentials flow
+- JWT access tokens
+- JWKS endpoint
+
+---
+
+## v2.10.0
+
+### Added
+- Initial release
+- Basic agent management
+- Admin dashboard
+
+---
+
+## Upgrade Guide
+
+### Upgrading from v2.x
+
+```bash
+# Pull latest
+docker pull ghcr.io/mandarwagh9/machineauth:latest
+
+# Or rebuild from source
+git pull
+go build -o machineauth ./cmd/server
+```
+
+### Breaking Changes
+
+No breaking changes in recent versions. See [GitHub Releases](https://github.com/mandarwagh9/MachineAuth/releases) for older versions.
+
+## Staying Updated
+
+- ⭐ Star on GitHub
+- Join [Discord](https://discord.gg/machineauth)
+- Watch releases

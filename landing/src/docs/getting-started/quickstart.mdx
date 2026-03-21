@@ -1,0 +1,89 @@
+export const metadata = {
+  title: 'Quick Start - MachineAuth Docs',
+  description: 'Get MachineAuth running in 5 minutes.',
+};
+
+# Quick Start
+
+Get MachineAuth running in 5 minutes.
+
+## 1. Run the Server
+
+The fastest way to start is using Docker:
+
+```bash
+docker run -p 8080:8080 ghcr.io/mandarwagh9/machineauth:latest
+```
+
+Or run directly from source:
+
+```bash
+git clone https://github.com/mandarwagh9/MachineAuth.git
+cd MachineAuth
+go run ./cmd/server
+```
+
+The server starts on `http://localhost:8080`.
+
+## 2. Create an Agent
+
+```bash
+curl -X POST http://localhost:8080/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "scopes": ["read", "write"]}'
+```
+
+Response:
+
+```json
+{
+  "agent": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "my-agent",
+    "client_id": "cid_a1b2c3d4e5f6",
+    "scopes": ["read", "write"],
+    "is_active": true,
+    "created_at": "2026-03-01T12:00:00Z"
+  },
+  "client_id": "cid_a1b2c3d4e5f6",
+  "client_secret": "cs_xK9mPqR..."
+}
+```
+
+> **Important:** Save the `client_secret` — it won't be shown again!
+
+## 3. Get a Token
+
+```bash
+curl -X POST http://localhost:8080/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "client_credentials",
+    "client_id": "cid_a1b2c3d4e5f6",
+    "client_secret": "cs_xK9mPqR..."
+  }'
+```
+
+Response:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "rt_8f14e45f..."
+}
+```
+
+## 4. Use the Token
+
+```bash
+curl http://localhost:8080/api/agents/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+## What's Next?
+
+- [Your First Agent](/docs/getting-started/your-first-agent) — Build a complete agent workflow
+- [Authentication](/docs/core-concepts/authentication) — Deep dive into OAuth 2.0
+- [API Reference](/docs/api-reference/overview) — Explore all endpoints

@@ -1,0 +1,140 @@
+export const metadata = {
+  title: 'Your First Agent - MachineAuth Docs',
+  description: 'Build your first AI agent with MachineAuth.',
+};
+
+# Your First Agent
+
+A complete walkthrough of creating and managing an AI agent.
+
+## Scenario
+
+We'll create an agent that can:
+- Read from your API
+- Write to your API
+- Rotate its credentials when needed
+
+## Step 1: Create the Agent
+
+```bash
+curl -X POST http://localhost:8080/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "data-processor-agent",
+    "scopes": ["read", "write"],
+    "expires_in": 7776000
+  }'
+```
+
+This creates an agent that expires in 90 days. Response:
+
+```json
+{
+  "agent": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "data-processor-agent",
+    "client_id": "cid_abc123...",
+    "scopes": ["read", "write"],
+    "is_active": true,
+    "expires_at": "2026-06-01T12:00:00Z"
+  },
+  "client_id": "cid_abc123...",
+  "client_secret": "cs_secret..."
+}
+```
+
+> **Security Tip:** Store the `client_secret` securely — it's only shown once!
+
+## Step 2: Get a Token
+
+```bash
+curl -X POST http://localhost:8080/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "client_credentials",
+    "client_id": "cid_abc123...",
+    "client_secret": "cs_secret...",
+    "scope": "read write"
+  }'
+```
+
+Response:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "read write",
+  "refresh_token": "rt_xyz789..."
+}
+```
+
+## Step 3: Use the Token
+
+```bash
+# Get agent's own profile
+curl http://localhost:8080/api/agents/me \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+
+# Check usage stats
+curl http://localhost:8080/api/agents/me/usage \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+```
+
+## Step 4: Refresh the Token
+
+When the access token expires (default: 1 hour):
+
+```bash
+curl -X POST http://localhost:8080/oauth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "refresh_token",
+    "refresh_token": "rt_xyz789..."
+  }'
+```
+
+## Step 5: Rotate Credentials
+
+When you need to rotate the agent's secret:
+
+```bash
+curl -X POST http://localhost:8080/api/agents/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Content-Type: application/json" \
+  -d '{"action": "rotate"}'
+```
+
+Response:
+
+```json
+{
+  "client_secret": "cs_new_secret..."
+}
+```
+
+The old secret immediately stops working for new tokens. Existing tokens remain valid until they expire.
+
+## Agent Self-Service
+
+Agents can manage themselves using their JWT:
+
+```bash
+# View own profile
+curl http://localhost:8080/api/agents/me \
+  -H "Authorization: Bearer TOKEN"
+
+# Rotate own credentials
+curl -X POST http://localhost:8080/api/agents/me/rotate \
+  -H "Authorization: Bearer TOKEN"
+
+# Deactivate self
+curl -X POST http://localhost:8080/api/agents/me/deactivate \
+  -H "Authorization: Bearer TOKEN"
+```
+
+## Next Steps
+
+- [Agents API](/docs/api-reference/agents) — Full API reference
+- [Tokens](/docs/core-concepts/tokens) — Deep dive into token management
+- [Webhooks](/docs/core-concepts/webhooks) — Get notified of events

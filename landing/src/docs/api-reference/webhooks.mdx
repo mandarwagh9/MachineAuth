@@ -1,0 +1,197 @@
+export const metadata = {
+  title: 'Webhooks API - MachineAuth Docs',
+  description: 'Webhook management and delivery API endpoints.',
+};
+
+# Webhooks API
+
+## POST /api/webhooks
+
+Create a webhook.
+
+**Auth:** Admin
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/api/webhooks \
+  -H "Content-Type: application/json" \
+  -u admin@example.com:changeme \
+  -d '{
+    "name": "Prod Notifications",
+    "url": "https://yourapp.com/webhooks",
+    "events": ["agent.created", "agent.deleted"],
+    "max_retries": 5
+  }'
+```
+
+**Response (201):**
+
+```json
+{
+  "webhook": {
+    "id": "webhook_123",
+    "name": "Prod Notifications",
+    "url": "https://yourapp.com/webhooks",
+    "events": ["agent.created", "agent.deleted"],
+    "is_active": true,
+    "max_retries": 5
+  },
+  "secret": "whsec_abc123..."
+}
+```
+
+---
+
+## GET /api/webhooks
+
+List all webhooks.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "webhooks": [
+    {
+      "id": "webhook_123",
+      "name": "Prod Notifications",
+      "url": "https://yourapp.com/webhooks",
+      "events": ["agent.created", "agent.deleted"],
+      "is_active": true,
+      "consecutive_fails": 0
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/webhooks/:id
+
+Get a webhook.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "webhook": {
+    "id": "webhook_123",
+    "name": "Prod Notifications",
+    "url": "https://yourapp.com/webhooks",
+    "events": ["agent.created", "agent.deleted"],
+    "is_active": true,
+    "max_retries": 5,
+    "created_at": "2026-03-01T12:00:00Z"
+  }
+}
+```
+
+---
+
+## PUT /api/webhooks/:id
+
+Update a webhook.
+
+**Auth:** Admin
+
+**Request:**
+
+```json
+{
+  "name": "Updated Name",
+  "is_active": false,
+  "max_retries": 3
+}
+```
+
+---
+
+## DELETE /api/webhooks/:id
+
+Delete a webhook.
+
+**Auth:** Admin
+
+**Response:** 204 No Content
+
+---
+
+## POST /api/webhooks/:id/test
+
+Test a webhook.
+
+**Auth:** Admin
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/api/webhooks/webhook_123/test \
+  -H "Content-Type: application/json" \
+  -u admin@example.com:changeme \
+  -d '{"event": "webhook.test"}'
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "status_code": 200
+}
+```
+
+---
+
+## GET /api/webhooks/:id/deliveries
+
+Get delivery history.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "deliveries": [
+    {
+      "id": "delivery_123",
+      "event": "agent.created",
+      "status": "delivered",
+      "attempts": 1,
+      "last_attempt_at": "2026-03-01T12:00:01Z"
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/webhook-events
+
+List available event types.
+
+**Auth:** Admin
+
+**Response (200):**
+
+```json
+{
+  "events": [
+    "agent.created",
+    "agent.deleted",
+    "agent.updated",
+    "agent.credentials_rotated",
+    "token.issued",
+    "token.validation_success",
+    "token.validation_failed",
+    "webhook.created",
+    "webhook.updated",
+    "webhook.deleted",
+    "webhook.test"
+  ]
+}
+```
