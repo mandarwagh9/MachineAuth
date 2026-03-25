@@ -19,14 +19,17 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Auto-logout on 401 responses
+// Auto-logout on 401 responses (but not if already on login page)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('machineauth_auth')
-      localStorage.removeItem('machineauth_token')
-      window.location.href = '/login'
+      // Don't redirect if already on login page to avoid infinite loop
+      if (!window.location.pathname.includes('/login')) {
+        localStorage.removeItem('machineauth_auth')
+        localStorage.removeItem('machineauth_token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
